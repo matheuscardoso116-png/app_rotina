@@ -1,196 +1,168 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
-interface Evento {
-  id: string
-  tipo: string
-  descricao: string
-  hora_evento: string | null
-  valor: number | null
-  created_at: string
-  mensagem_original: string
+interface TimelineItem {
+  id: string; titulo: string; descricao?: string; tipo: string; hora: string
 }
 
-const TIPO_CONFIG: Record<string, { icon: string; color: string; label: string }> = {
-  atividade: { icon: '📍', color: '#3b82f6', label: 'Atividade' },
-  gasto:     { icon: '💸', color: '#ef4444', label: 'Gasto' },
-  treino:    { icon: '💪', color: '#10b981', label: 'Treino' },
-  tarefa:    { icon: '✅', color: '#22c55e', label: 'Tarefa' },
-  salario:   { icon: '💰', color: '#f59e0b', label: 'Entrada' },
-  outro:     { icon: '📝', color: '#64748b', label: 'Outro' },
-}
-
-const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '5562982590727'
+const TIPOS_TL = [
+  { id: 'trabalho',  icon: '💼', color: '#6366f1', label: 'Trabalho' },
+  { id: 'reuniao',   icon: '🤝', color: '#3b82f6', label: 'Reunião' },
+  { id: 'refeicao',  icon: '🍽️', color: '#f59e0b', label: 'Refeição' },
+  { id: 'exercicio', icon: '🏃', color: '#10b981', label: 'Exercício' },
+  { id: 'lazer',    icon: '🎮', color: '#ec4899', label: 'Lazer' },
+  { id: 'saude',    icon: '💊', color: '#06b6d4', label: 'Saúde' },
+  { id: 'outro',    icon: '📍', color: '#8e8e93', label: 'Outro' },
+]
+const getTipo = (t: string) => TIPOS_TL.find(x => x.id === t) ?? TIPOS_TL[6]
 
 export default function TimelinePage() {
-  const [eventos, setEventos] = useState<Evento[]>([])
+  const [items, setItems] = useState<TimelineItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [gerandoRelatorio, setGerandoRelatorio] = useState(false)
-  const [relatorio, setRelatorio] = useState('')
-  const [periodo, setPeriodo] = useState<'hoje' | 'mes'>('hoje')
-  const supabase = createClient()
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({
+    titulo: '', descricao: '', tipo: 'trabalho',
+    hora: format(new Date(), 'HH:mm'),
+  })
 
-  useEffect(() => {
-    loadEventos()
-  }, [periodo])
-
-  async function loadEventos() {
-    setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const hoje = format(new Date(), 'yyyy-MM-dd')
-    const inicioMes = hoje.substring(0, 7) + '-01'
-    const dataInicio = periodo === 'mes' ? inicioMes : hoje
-
-    const { data } = await supabase
-      .from('timeline')
-      .select('*')
-      .eq('user_id', user.id)
-      .gte('created_at', dataInicio + 'T00:00:00')
-      .order('created_at', { ascending: false })
-
-    setEventos(data ?? [])
+  async function load() {
+    const r = await fetch('/api/timeline')
+    setItems(await r.json())
     setLoading(false)
   }
+  useEffect(() => { load() }, [])
 
-  async function gerarRelatorio() {
-    setGerandoRelatorio(true)
-    setRelatorio('')
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const res = await fetch(`/api/relatorio?userId=${user.id}&periodo=${periodo}`)
-      const json = await res.json()
-      setRelatorio(json.relatorio ?? 'Erro ao gerar relatório.')
-    } catch {
-      setRelatorio('Erro ao gerar relatório. Verifique sua API Key.')
-    } finally {
-      setGerandoRelatorio(false)
-    }
+  async function salvar(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true)
+    await fetch('/api/timeline', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    })
+    setOpen(false)
+    setForm({ titulo: '', descricao: '', tipo: 'trabalho', hora: format(new Date(), 'HH:mm') })
+    await load(); setSaving(false)
   }
 
-  async function deletarEvento(id: string) {
-    await supabase.from('timeline').delete().eq('id', id)
-    setEventos(prev => prev.filter(e => e.id !== id))
+  async function excluir(id: string) {
+    await fetch('/api/timeline', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    setItems(prev => prev.filter(x => x.id !== id))
   }
-
-  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=`
-  const mensagemPre = encodeURIComponent('')
-
-  const hoje = format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })
 
   return (
-    <div className="p-5">
+    <div style={{ background: '#0a0a0a', minHeight: '100dvh', paddingBottom: 100 }}>
       {/* Header */}
-      <div className="mb-5">
-        <h1 className="text-2xl font-bold text-white">Linha do Tempo</h1>
-        <p className="text-slate-400 text-sm capitalize mt-1">{hoje}</p>
+      <div style={{ background: '#0a0a0a', padding: '52px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 700, margin: 0 }}>Timeline ⏱️</h1>
+            <p style={{ color: '#8e8e93', fontSize: 13, margin: '2px 0 0' }}>
+              {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
+            </p>
+          </div>
+          <button onClick={() => setOpen(true)}
+            style={{ padding: '9px 18px', background: '#f59e0b', borderRadius: 12, color: '#000', fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer' }}>
+            + Registrar
+          </button>
+        </div>
       </div>
 
-      {/* Botão WhatsApp */}
-      <a
-        href={`https://wa.me/${WHATSAPP_NUMBER}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block w-full rounded-2xl py-4 px-5 mb-5 text-center font-semibold text-white"
-        style={{ background: '#25D366' }}
-      >
-        <span className="text-xl mr-2">📲</span>
-        Registrar via WhatsApp
-      </a>
+      <div style={{ padding: '16px' }}>
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 72, borderRadius: 16 }} />)}
+          </div>
+        ) : items.length === 0 ? (
+          <div style={{ textAlign: 'center', marginTop: 60 }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>⏱️</div>
+            <p style={{ color: '#8e8e93' }}>Nenhuma atividade hoje</p>
+          </div>
+        ) : (
+          <div style={{ position: 'relative' }}>
+            <div style={{ position: 'absolute', left: 27, top: 0, bottom: 0, width: 2, background: 'rgba(255,255,255,0.06)', zIndex: 0 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {items.map((item) => {
+                const tipo = getTipo(item.tipo)
+                return (
+                  <div key={item.id} style={{ display: 'flex', gap: 16, alignItems: 'flex-start', paddingBottom: 16, position: 'relative' }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: '50%', flexShrink: 0, zIndex: 1,
+                      background: tipo.color + '20', border: `2px solid ${tipo.color}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+                    }}>{tipo.icon}</div>
 
-      {/* Seletor de período + botão relatório */}
-      <div className="flex gap-2 mb-5">
-        <button
-          onClick={() => setPeriodo('hoje')}
-          className="flex-1 py-2 rounded-xl text-sm font-medium transition-colors"
-          style={{ background: periodo === 'hoje' ? '#3b82f6' : '#1e293b', color: '#fff' }}
-        >
-          Hoje
-        </button>
-        <button
-          onClick={() => setPeriodo('mes')}
-          className="flex-1 py-2 rounded-xl text-sm font-medium transition-colors"
-          style={{ background: periodo === 'mes' ? '#3b82f6' : '#1e293b', color: '#fff' }}
-        >
-          Este mês
-        </button>
-        <button
-          onClick={gerarRelatorio}
-          disabled={gerandoRelatorio}
-          className="flex-1 py-2 rounded-xl text-sm font-medium"
-          style={{ background: '#8b5cf6', color: '#fff', opacity: gerandoRelatorio ? 0.6 : 1 }}
-        >
-          {gerandoRelatorio ? '...' : '🤖 IA'}
-        </button>
-      </div>
-
-      {/* Relatório IA */}
-      {relatorio && (
-        <div className="rounded-2xl p-4 mb-5 text-sm text-slate-200 whitespace-pre-wrap" style={{ background: '#1e293b', borderLeft: '3px solid #8b5cf6' }}>
-          <div className="text-xs text-purple-400 font-semibold mb-2">RELATÓRIO INTELIGENTE</div>
-          {relatorio}
-        </div>
-      )}
-
-      {/* Timeline */}
-      {loading ? (
-        <div className="text-center text-slate-500 mt-10">Carregando...</div>
-      ) : eventos.length === 0 ? (
-        <div className="text-center mt-10">
-          <div className="text-4xl mb-3">📭</div>
-          <p className="text-slate-400 text-sm">Nenhum evento registrado.</p>
-          <p className="text-slate-500 text-xs mt-1">Use o botão acima para registrar via WhatsApp.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {eventos.map((ev, i) => {
-            const cfg = TIPO_CONFIG[ev.tipo] ?? TIPO_CONFIG.outro
-            const hora = ev.hora_evento
-              ? ev.hora_evento.substring(0, 5)
-              : format(new Date(ev.created_at), 'HH:mm')
-            return (
-              <div key={ev.id} className="flex gap-3">
-                {/* Linha do tempo */}
-                <div className="flex flex-col items-center">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0"
-                    style={{ background: cfg.color + '22', color: cfg.color }}>
-                    {cfg.icon}
-                  </div>
-                  {i < eventos.length - 1 && (
-                    <div className="w-px flex-1 mt-1" style={{ background: '#334155', minHeight: '16px' }} />
-                  )}
-                </div>
-
-                {/* Conteúdo */}
-                <div className="flex-1 rounded-xl p-3 mb-1" style={{ background: '#1e293b' }}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <span className="text-xs font-semibold" style={{ color: cfg.color }}>{cfg.label}</span>
-                      <span className="text-xs text-slate-500 ml-2">{hora}</span>
-                      <p className="text-sm text-white mt-1">{ev.descricao}</p>
-                      {ev.valor && (
-                        <p className="text-sm font-semibold mt-1" style={{ color: ev.tipo === 'salario' ? '#22c55e' : '#ef4444' }}>
-                          {ev.tipo === 'salario' ? '+' : '-'}R$ {Number(ev.valor).toFixed(2)}
-                        </p>
-                      )}
+                    <div style={{ flex: 1, background: '#141414', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <p style={{ color: '#fff', fontWeight: 500, fontSize: 15, margin: 0 }}>{item.titulo}</p>
+                          <p style={{ color: tipo.color, fontSize: 12, margin: '2px 0 0', fontWeight: 500 }}>
+                            {item.hora?.substring(0, 5)} · {tipo.label}
+                          </p>
+                        </div>
+                        <button onClick={() => excluir(item.id)}
+                          style={{ color: '#636366', fontSize: 20, background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>×</button>
+                      </div>
+                      {item.descricao && <p style={{ color: '#8e8e93', fontSize: 13, margin: '6px 0 0' }}>{item.descricao}</p>}
                     </div>
-                    <button
-                      onClick={() => deletarEvento(ev.id)}
-                      className="text-slate-600 hover:text-red-400 text-xs mt-1 flex-shrink-0"
-                    >
-                      ✕
-                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Sheet */}
+      {open && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 50, display: 'flex', alignItems: 'flex-end' }}
+          onClick={e => e.target === e.currentTarget && setOpen(false)}>
+          <div className="sheet" style={{ width: '100%' }}>
+            <div style={{ width: 36, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 2, margin: '12px auto 20px' }} />
+            <div style={{ padding: '0 20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <h2 style={{ color: '#fff', fontSize: 18, fontWeight: 700, margin: 0 }}>Registrar Atividade</h2>
+                <button onClick={() => setOpen(false)}
+                  style={{ background: '#2c2c2e', border: 'none', borderRadius: 20, width: 30, height: 30, color: '#8e8e93', cursor: 'pointer', fontSize: 16 }}>×</button>
+              </div>
+
+              <form onSubmit={salvar} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <input className="input" type="text" placeholder="O que fez?" required
+                  value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} />
+
+                <div>
+                  <label style={{ color: '#8e8e93', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Tipo</label>
+                  <div className="no-scroll-bar" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+                    {TIPOS_TL.map(t => (
+                      <button type="button" key={t.id} onClick={() => setForm(f => ({ ...f, tipo: t.id }))}
+                        style={{
+                          flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5,
+                          padding: '8px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 13, fontWeight: 500,
+                          background: form.tipo === t.id ? t.color + '30' : 'rgba(255,255,255,0.06)',
+                          border: `1.5px solid ${form.tipo === t.id ? t.color : 'transparent'}`,
+                          color: form.tipo === t.id ? t.color : '#8e8e93',
+                        }}>
+                        {t.icon} {t.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              </div>
-            )
-          })}
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <input className="input" type="time" value={form.hora} onChange={e => setForm(f => ({ ...f, hora: e.target.value }))} />
+                  <textarea className="input" placeholder="Obs (opcional)" rows={1}
+                    value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
+                    style={{ resize: 'none', fontSize: 16 }} />
+                </div>
+
+                <button className="btn-primary" type="submit" disabled={saving}>
+                  {saving ? 'Salvando...' : 'Registrar'}
+                </button>
+              </form>
+            </div>
+          </div>
         </div>
       )}
     </div>

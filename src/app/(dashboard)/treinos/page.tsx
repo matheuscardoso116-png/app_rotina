@@ -5,29 +5,23 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
 interface Treino {
-  id: string
-  tipo: string
-  duracao_min: number | null
-  observacoes: string | null
-  grupos_musculares: string
-  data: string
+  id: string; tipo: string; duracao_min: number | null; observacoes: string | null; grupos_musculares: string; data: string
 }
 
 const GRUPOS = [
-  { id: 'Peito', icon: '🫀' }, { id: 'Costas', icon: '🏋️' },
-  { id: 'Bíceps', icon: '💪' }, { id: 'Tríceps', icon: '🦾' },
-  { id: 'Ombros', icon: '🤸' }, { id: 'Pernas', icon: '🦵' },
-  { id: 'Glúteo', icon: '⬛' }, { id: 'Abdômen', icon: '⚡' },
-  { id: 'Cardio', icon: '🏃' }, { id: 'Funcional', icon: '🔥' },
+  { id: 'Peito', icon: '🫀', color: '#ef4444' },
+  { id: 'Costas', icon: '🏋️', color: '#3b82f6' },
+  { id: 'Bíceps', icon: '💪', color: '#f59e0b' },
+  { id: 'Tríceps', icon: '🦾', color: '#8b5cf6' },
+  { id: 'Ombros', icon: '🤸', color: '#06b6d4' },
+  { id: 'Pernas', icon: '🦵', color: '#10b981' },
+  { id: 'Glúteo', icon: '⬛', color: '#ec4899' },
+  { id: 'Abdômen', icon: '⚡', color: '#f97316' },
+  { id: 'Cardio', icon: '🏃', color: '#22c55e' },
+  { id: 'Funcional', icon: '🔥', color: '#6366f1' },
 ]
 
 const TIPOS = ['Musculação', 'Corrida', 'Ciclismo', 'Natação', 'Crossfit', 'Yoga', 'Caminhada', 'Futebol', 'Outro']
-
-const GRUPOS_CORES: Record<string, string> = {
-  Peito: '#ef4444', Costas: '#3b82f6', Bíceps: '#f59e0b', Tríceps: '#8b5cf6',
-  Ombros: '#06b6d4', Pernas: '#10b981', Glúteo: '#ec4899', Abdômen: '#f97316',
-  Cardio: '#22c55e', Funcional: '#6366f1',
-}
 
 export default function TreinosPage() {
   const [treinos, setTreinos] = useState<Treino[]>([])
@@ -36,42 +30,31 @@ export default function TreinosPage() {
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     tipo: 'Musculação', duracao_min: '', observacoes: '',
-    grupos_musculares: [] as string[], data: format(new Date(), 'yyyy-MM-dd'),
+    grupos: [] as string[], data: format(new Date(), 'yyyy-MM-dd'),
   })
 
   async function load() {
-    const res = await fetch('/api/treinos')
-    setTreinos(await res.json())
+    const r = await fetch('/api/treinos')
+    setTreinos(await r.json())
     setLoading(false)
   }
-
   useEffect(() => { load() }, [])
 
   function toggleGrupo(g: string) {
     setForm(f => ({
-      ...f,
-      grupos_musculares: f.grupos_musculares.includes(g)
-        ? f.grupos_musculares.filter(x => x !== g)
-        : [...f.grupos_musculares, g],
+      ...f, grupos: f.grupos.includes(g) ? f.grupos.filter(x => x !== g) : [...f.grupos, g],
     }))
   }
 
   async function salvar(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault(); setSaving(true)
     await fetch('/api/treinos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...form,
-        duracao_min: parseInt(form.duracao_min) || null,
-        grupos_musculares: form.grupos_musculares.join(','),
-      }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...form, duracao_min: parseInt(form.duracao_min) || null, grupos_musculares: form.grupos.join(',') }),
     })
     setOpen(false)
-    setForm({ tipo: 'Musculação', duracao_min: '', observacoes: '', grupos_musculares: [], data: format(new Date(), 'yyyy-MM-dd') })
-    await load()
-    setSaving(false)
+    setForm({ tipo: 'Musculação', duracao_min: '', observacoes: '', grupos: [], data: format(new Date(), 'yyyy-MM-dd') })
+    await load(); setSaving(false)
   }
 
   async function excluir(id: string) {
@@ -80,133 +63,132 @@ export default function TreinosPage() {
   }
 
   return (
-    <div className="pb-24" style={{ background: '#0a0f1e', minHeight: '100vh' }}>
+    <div style={{ background: '#0a0a0a', minHeight: '100dvh', paddingBottom: 100 }}>
       {/* Header */}
-      <div className="px-5 pt-12 pb-5" style={{ background: '#111827', borderBottom: '1px solid #1e293b' }}>
-        <div className="flex items-center justify-between">
+      <div style={{ background: '#0a0a0a', padding: '52px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <h1 className="text-2xl font-bold text-white">Treinos 💪</h1>
-            <p className="text-slate-400 text-sm mt-0.5">{treinos.length} registros</p>
+            <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 700, margin: 0 }}>Treinos 💪</h1>
+            <p style={{ color: '#8e8e93', fontSize: 13, margin: '2px 0 0' }}>{treinos.length} registros</p>
           </div>
           <button onClick={() => setOpen(true)}
-            className="px-4 py-2 rounded-xl text-sm font-semibold text-white"
-            style={{ background: '#3b82f6' }}>
+            style={{ padding: '9px 18px', background: '#3b82f6', borderRadius: 12, color: '#fff', fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer' }}>
             + Novo
           </button>
         </div>
       </div>
 
-      <div className="px-5 pt-5 space-y-3">
+      <div style={{ padding: '16px' }}>
         {loading ? (
-          <div className="text-center text-slate-500 mt-20">Carregando...</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 80, borderRadius: 16 }} />)}
+          </div>
         ) : treinos.length === 0 ? (
-          <div className="text-center mt-20">
-            <p className="text-4xl mb-3">🏋️</p>
-            <p className="text-slate-400">Nenhum treino registrado</p>
+          <div style={{ textAlign: 'center', marginTop: 60 }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🏋️</div>
+            <p style={{ color: '#8e8e93' }}>Nenhum treino registrado</p>
           </div>
         ) : (
-          treinos.map(t => {
-            const grupos = t.grupos_musculares ? t.grupos_musculares.split(',').filter(Boolean) : []
-            return (
-              <div key={t.id} className="rounded-2xl p-4" style={{ background: '#111827', border: '1px solid #1e293b' }}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-white font-semibold">{t.tipo}</span>
-                      {t.duracao_min && (
-                        <span className="text-xs px-2 py-0.5 rounded-full text-blue-300" style={{ background: '#1e3a5f' }}>
-                          {t.duracao_min} min
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-500 mt-0.5">{format(new Date(t.data + 'T12:00:00'), "dd 'de' MMMM", { locale: ptBR })}</p>
-
-                    {grupos.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {grupos.map(g => (
-                          <span key={g} className="text-xs px-2 py-0.5 rounded-full font-medium"
-                            style={{ background: (GRUPOS_CORES[g] ?? '#475569') + '22', color: GRUPOS_CORES[g] ?? '#94a3b8' }}>
-                            {GRUPOS.find(x => x.id === g)?.icon} {g}
-                          </span>
-                        ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {treinos.map(t => {
+              const grupos = t.grupos_musculares?.split(',').filter(Boolean) ?? []
+              return (
+                <div key={t.id} className="list-item" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div className="icon-circle" style={{ background: 'rgba(59,130,246,0.2)', fontSize: 20 }}>💪</div>
+                      <div>
+                        <p style={{ color: '#fff', fontWeight: 600, fontSize: 15, margin: 0 }}>{t.tipo}</p>
+                        <p style={{ color: '#8e8e93', fontSize: 12, margin: '2px 0 0' }}>
+                          {format(new Date(t.data + 'T12:00:00'), "dd 'de' MMM", { locale: ptBR })}
+                          {t.duracao_min ? ` · ${t.duracao_min} min` : ''}
+                        </p>
                       </div>
-                    )}
-
-                    {t.observacoes && <p className="text-sm text-slate-400 mt-2">{t.observacoes}</p>}
+                    </div>
+                    <button onClick={() => excluir(t.id)}
+                      style={{ color: '#636366', fontSize: 22, background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>×</button>
                   </div>
-                  <button onClick={() => excluir(t.id)} className="text-slate-600 hover:text-red-400 text-xl flex-shrink-0">×</button>
+                  {grupos.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {grupos.map(g => {
+                        const gr = GRUPOS.find(x => x.id === g)
+                        return (
+                          <span key={g} style={{
+                            background: (gr?.color ?? '#64748b') + '22',
+                            color: gr?.color ?? '#94a3b8',
+                            fontSize: 11, padding: '3px 10px', borderRadius: 10, fontWeight: 500,
+                          }}>
+                            {gr?.icon} {g}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {t.observacoes && <p style={{ color: '#8e8e93', fontSize: 13, margin: 0 }}>{t.observacoes}</p>}
                 </div>
-              </div>
-            )
-          })
+              )
+            })}
+          </div>
         )}
       </div>
 
-      {/* Modal */}
+      {/* Bottom Sheet */}
       {open && (
-        <div className="fixed inset-0 flex items-end justify-center z-50" style={{ background: 'rgba(0,0,0,0.8)' }}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 50, display: 'flex', alignItems: 'flex-end' }}
           onClick={e => e.target === e.currentTarget && setOpen(false)}>
-          <div className="w-full max-w-lg rounded-t-3xl p-6 overflow-y-auto" style={{ background: '#111827', maxHeight: '90vh' }}>
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-white">Novo Treino</h2>
-              <button onClick={() => setOpen(false)} className="text-slate-500 text-2xl">×</button>
-            </div>
-            <form onSubmit={salvar} className="space-y-4">
-              <div>
-                <label className="text-xs text-slate-400 font-medium mb-2 block">Tipo de treino</label>
-                <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl text-white outline-none" style={{ background: '#1e293b' }}>
+          <div className="sheet" style={{ width: '100%' }}>
+            <div style={{ width: 36, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 2, margin: '12px auto 20px' }} />
+            <div style={{ padding: '0 20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <h2 style={{ color: '#fff', fontSize: 18, fontWeight: 700, margin: 0 }}>Novo Treino</h2>
+                <button onClick={() => setOpen(false)}
+                  style={{ background: '#2c2c2e', border: 'none', borderRadius: 20, width: 30, height: 30, color: '#8e8e93', cursor: 'pointer', fontSize: 16 }}>×</button>
+              </div>
+
+              <form onSubmit={salvar} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <select className="input" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}>
                   {TIPOS.map(t => <option key={t}>{t}</option>)}
                 </select>
-              </div>
 
-              <div>
-                <label className="text-xs text-slate-400 font-medium mb-2 block">Grupos musculares trabalhados</label>
-                <div className="grid grid-cols-5 gap-2">
-                  {GRUPOS.map(g => {
-                    const sel = form.grupos_musculares.includes(g.id)
-                    return (
-                      <button type="button" key={g.id} onClick={() => toggleGrupo(g.id)}
-                        className="flex flex-col items-center gap-1 py-2 rounded-xl transition-all"
-                        style={{
-                          background: sel ? (GRUPOS_CORES[g.id] ?? '#6366f1') + '33' : '#1e293b',
-                          border: `1px solid ${sel ? (GRUPOS_CORES[g.id] ?? '#6366f1') : 'transparent'}`,
-                        }}>
-                        <span className="text-lg">{g.icon}</span>
-                        <span className="text-xs text-slate-300" style={{ fontSize: '10px' }}>{g.id}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+                {/* Grupos musculares - chips wrap */}
                 <div>
-                  <label className="text-xs text-slate-400 font-medium mb-2 block">Duração (min)</label>
-                  <input type="number" placeholder="60" value={form.duracao_min}
-                    onChange={e => setForm(f => ({ ...f, duracao_min: e.target.value }))}
-                    className="w-full px-4 py-3 rounded-xl text-white placeholder-slate-600 outline-none" style={{ background: '#1e293b' }} />
+                  <label style={{ color: '#8e8e93', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Grupos musculares
+                  </label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {GRUPOS.map(g => {
+                      const sel = form.grupos.includes(g.id)
+                      return (
+                        <button type="button" key={g.id} onClick={() => toggleGrupo(g.id)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 5,
+                            padding: '8px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 13, fontWeight: 500,
+                            background: sel ? g.color + '30' : 'rgba(255,255,255,0.06)',
+                            border: `1.5px solid ${sel ? g.color : 'transparent'}`,
+                            color: sel ? g.color : '#8e8e93',
+                          }}>
+                          {g.icon} {g.id}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs text-slate-400 font-medium mb-2 block">Data</label>
-                  <input type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))}
-                    className="w-full px-4 py-3 rounded-xl text-white outline-none" style={{ background: '#1e293b' }} />
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <input className="input" type="number" inputMode="numeric" placeholder="Duração (min)"
+                    value={form.duracao_min} onChange={e => setForm(f => ({ ...f, duracao_min: e.target.value }))} />
+                  <input className="input" type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} />
                 </div>
-              </div>
 
-              <div>
-                <label className="text-xs text-slate-400 font-medium mb-2 block">Observações</label>
-                <textarea placeholder="Ex: Fiz 4 séries de supino, PR novo..." value={form.observacoes ?? ''}
-                  onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))}
-                  rows={2} className="w-full px-4 py-3 rounded-xl text-white placeholder-slate-600 outline-none resize-none" style={{ background: '#1e293b' }} />
-              </div>
+                <textarea className="input" placeholder="Observações (ex: supino 80kg 4x10)" rows={2}
+                  value={form.observacoes ?? ''} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))}
+                  style={{ resize: 'none', fontSize: 16 }} />
 
-              <button type="submit" disabled={saving}
-                className="w-full py-3.5 rounded-xl font-semibold text-white disabled:opacity-50"
-                style={{ background: '#3b82f6' }}>
-                {saving ? 'Salvando...' : 'Salvar treino'}
-              </button>
-            </form>
+                <button className="btn-primary" type="submit" disabled={saving}>
+                  {saving ? 'Salvando...' : 'Salvar treino'}
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       )}

@@ -8,7 +8,7 @@ interface Gasto {
   id: string; descricao: string; valor: number; categoria: string; tipo: 'pessoal' | 'empresa'; data: string
 }
 
-const CATEGORIAS = [
+const CATS = [
   { label: 'Alimentação', icon: '🍔', color: '#f59e0b' },
   { label: 'Transporte', icon: '🚗', color: '#3b82f6' },
   { label: 'Moradia', icon: '🏠', color: '#8b5cf6' },
@@ -20,16 +20,12 @@ const CATEGORIAS = [
   { label: 'Marketing', icon: '📣', color: '#84cc16' },
   { label: 'Outros', icon: '💼', color: '#64748b' },
 ]
+const getC = (l: string) => CATS.find(c => c.label === l) ?? CATS[9]
 
-const getCat = (label: string) => CATEGORIAS.find(c => c.label === label) ?? CATEGORIAS[9]
-
-function downloadCSV(gastos: Gasto[]) {
-  const header = 'Descrição,Valor,Categoria,Tipo,Data'
-  const rows = gastos.map(g => `"${g.descricao}",${g.valor},"${g.categoria}","${g.tipo}","${g.data}"`)
-  const csv = [header, ...rows].join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+function downloadCSV(g: Gasto[]) {
+  const csv = ['Descrição,Valor,Categoria,Tipo,Data', ...g.map(x => `"${x.descricao}",${x.valor},"${x.categoria}","${x.tipo}","${x.data}"`)].join('\n')
   const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
   a.download = `gastos_${format(new Date(), 'yyyy-MM')}.csv`
   a.click()
 }
@@ -41,18 +37,24 @@ export default function GastosPage() {
   const [saving, setSaving] = useState(false)
   const [filtro, setFiltro] = useState<'todos' | 'pessoal' | 'empresa'>('todos')
   const [catFiltro, setCatFiltro] = useState('')
-  const [form, setForm] = useState({ descricao: '', valor: '', categoria: 'Alimentação', tipo: 'pessoal', data: format(new Date(), 'yyyy-MM-dd') })
+  const [form, setForm] = useState({
+    descricao: '', valor: '', categoria: 'Alimentação', tipo: 'pessoal',
+    data: format(new Date(), 'yyyy-MM-dd'),
+  })
 
   async function load() {
-    const res = await fetch('/api/gastos')
-    setGastos(await res.json())
+    const r = await fetch('/api/gastos')
+    setGastos(await r.json())
     setLoading(false)
   }
   useEffect(() => { load() }, [])
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault(); setSaving(true)
-    await fetch('/api/gastos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, valor: parseFloat(form.valor) }) })
+    await fetch('/api/gastos', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...form, valor: parseFloat(form.valor) }),
+    })
     setOpen(false)
     setForm({ descricao: '', valor: '', categoria: 'Alimentação', tipo: 'pessoal', data: format(new Date(), 'yyyy-MM-dd') })
     await load(); setSaving(false)
@@ -63,78 +65,80 @@ export default function GastosPage() {
     setGastos(g => g.filter(x => x.id !== id))
   }
 
-  const filtrados = gastos
-    .filter(g => filtro === 'todos' || g.tipo === filtro)
-    .filter(g => !catFiltro || g.categoria === catFiltro)
-
+  const filtrados = gastos.filter(g => filtro === 'todos' || g.tipo === filtro).filter(g => !catFiltro || g.categoria === catFiltro)
   const total = filtrados.reduce((s, g) => s + Number(g.valor), 0)
   const pessoal = gastos.filter(g => g.tipo === 'pessoal').reduce((s, g) => s + Number(g.valor), 0)
   const empresa = gastos.filter(g => g.tipo === 'empresa').reduce((s, g) => s + Number(g.valor), 0)
-  const mesLabel = format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })
 
   return (
-    <div className="pb-24" style={{ background: '#0a0f1e', minHeight: '100vh' }}>
+    <div style={{ background: '#0a0a0a', minHeight: '100dvh', paddingBottom: 100 }}>
       {/* Header */}
-      <div className="px-5 pt-12 pb-5" style={{ background: '#111827', borderBottom: '1px solid #1e293b' }}>
-        <div className="flex items-center justify-between">
+      <div style={{ background: '#0a0a0a', padding: '52px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
-            <h1 className="text-2xl font-bold text-white">Finanças 💰</h1>
-            <p className="text-slate-400 text-sm mt-0.5 capitalize">{mesLabel}</p>
+            <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 700, margin: 0 }}>Finanças</h1>
+            <p style={{ color: '#8e8e93', fontSize: 13, margin: '2px 0 0' }}>
+              {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
+            </p>
           </div>
-          <div className="flex gap-2">
+          <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => downloadCSV(filtrados)}
-              className="px-3 py-2 rounded-xl text-xs font-medium text-slate-300"
-              style={{ background: '#1e293b' }}>
+              style={{ padding: '8px 12px', background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, color: '#8e8e93', fontSize: 13, cursor: 'pointer' }}>
               ⬇️ CSV
             </button>
             <button onClick={() => setOpen(true)}
-              className="px-4 py-2 rounded-xl text-sm font-semibold text-white"
-              style={{ background: '#6366f1' }}>
+              style={{ padding: '8px 16px', background: '#6366f1', borderRadius: 10, color: '#fff', fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer' }}>
               + Novo
             </button>
           </div>
         </div>
 
         {/* Totais */}
-        <div className="grid grid-cols-3 gap-3 mt-4">
-          <div className="rounded-xl p-3 text-center" style={{ background: '#0a0f1e' }}>
-            <p className="text-xs text-slate-500">Total</p>
-            <p className="text-base font-bold text-red-400">R$ {total.toFixed(0)}</p>
-          </div>
-          <div className="rounded-xl p-3 text-center" style={{ background: '#0a0f1e' }}>
-            <p className="text-xs text-slate-500">Pessoal</p>
-            <p className="text-base font-bold text-orange-400">R$ {pessoal.toFixed(0)}</p>
-          </div>
-          <div className="rounded-xl p-3 text-center" style={{ background: '#0a0f1e' }}>
-            <p className="text-xs text-slate-500">Empresa</p>
-            <p className="text-base font-bold text-purple-400">R$ {empresa.toFixed(0)}</p>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+          {[
+            { label: 'Total', val: total, color: '#ff453a' },
+            { label: 'Pessoal', val: pessoal, color: '#ff9f0a' },
+            { label: 'Empresa', val: empresa, color: '#bf5af2' },
+          ].map(x => (
+            <div key={x.label} style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
+              <div style={{ color: '#8e8e93', fontSize: 11 }}>{x.label}</div>
+              <div style={{ color: x.color, fontWeight: 700, fontSize: 16, marginTop: 2 }}>R$ {x.val.toFixed(0)}</div>
+            </div>
+          ))}
         </div>
       </div>
 
-      <div className="px-5 pt-4 space-y-4">
-        {/* Filtros tipo */}
-        <div className="flex gap-2">
+      <div style={{ padding: '16px 16px 0' }}>
+        {/* Filtro tipo */}
+        <div className="no-scroll-bar" style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 12, paddingBottom: 4 }}>
           {(['todos', 'pessoal', 'empresa'] as const).map(f => (
             <button key={f} onClick={() => setFiltro(f)}
-              className="px-3 py-1.5 rounded-full text-xs font-medium capitalize"
-              style={{ background: filtro === f ? '#6366f1' : '#1e293b', color: filtro === f ? '#fff' : '#94a3b8' }}>
+              style={{
+                flexShrink: 0, padding: '7px 14px', borderRadius: 20, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none',
+                background: filtro === f ? '#6366f1' : '#1c1c1e', color: filtro === f ? '#fff' : '#8e8e93',
+              }}>
               {f === 'todos' ? 'Todos' : f === 'pessoal' ? '👤 Pessoal' : '🏢 Empresa'}
             </button>
           ))}
         </div>
 
-        {/* Filtro por categoria */}
-        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+        {/* Filtro categoria */}
+        <div className="no-scroll-bar" style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 16, paddingBottom: 4 }}>
           <button onClick={() => setCatFiltro('')}
-            className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium"
-            style={{ background: !catFiltro ? '#1e3a5f' : '#1e293b', color: !catFiltro ? '#60a5fa' : '#64748b' }}>
+            style={{
+              flexShrink: 0, padding: '6px 12px', borderRadius: 16, fontSize: 12, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)',
+              background: !catFiltro ? 'rgba(99,102,241,0.2)' : '#141414', color: !catFiltro ? '#818cf8' : '#8e8e93',
+            }}>
             Todas
           </button>
-          {CATEGORIAS.map(c => (
+          {CATS.map(c => (
             <button key={c.label} onClick={() => setCatFiltro(catFiltro === c.label ? '' : c.label)}
-              className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1"
-              style={{ background: catFiltro === c.label ? c.color + '22' : '#1e293b', color: catFiltro === c.label ? c.color : '#64748b' }}>
+              style={{
+                flexShrink: 0, padding: '6px 12px', borderRadius: 16, fontSize: 12, cursor: 'pointer',
+                background: catFiltro === c.label ? c.color + '22' : '#141414',
+                border: `1px solid ${catFiltro === c.label ? c.color : 'rgba(255,255,255,0.07)'}`,
+                color: catFiltro === c.label ? c.color : '#8e8e93',
+              }}>
               {c.icon} {c.label}
             </button>
           ))}
@@ -142,33 +146,32 @@ export default function GastosPage() {
 
         {/* Lista */}
         {loading ? (
-          <div className="text-center text-slate-500 mt-20">Carregando...</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 72, borderRadius: 16 }} />)}
+          </div>
         ) : filtrados.length === 0 ? (
-          <div className="text-center mt-20">
-            <p className="text-4xl mb-3">💸</p>
-            <p className="text-slate-400">Nenhum gasto encontrado</p>
+          <div style={{ textAlign: 'center', marginTop: 60 }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>💸</div>
+            <p style={{ color: '#8e8e93' }}>Nenhum gasto encontrado</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {filtrados.map(g => {
-              const cat = getCat(g.categoria)
+              const cat = getC(g.categoria)
               return (
-                <div key={g.id} className="rounded-2xl p-4 flex items-center gap-3" style={{ background: '#111827', border: '1px solid #1e293b' }}>
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
-                    style={{ background: cat.color + '22' }}>
-                    {cat.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-medium text-sm truncate">{g.descricao}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs rounded-full px-2 py-0.5" style={{ background: cat.color + '22', color: cat.color }}>{g.categoria}</span>
-                      <span className="text-xs text-slate-600">{g.tipo}</span>
-                      <span className="text-xs text-slate-600">{format(new Date(g.data + 'T12:00:00'), 'dd/MM')}</span>
+                <div key={g.id} className="list-item" style={{ gap: 12 }}>
+                  <div className="icon-circle" style={{ background: cat.color + '20', fontSize: 22 }}>{cat.icon}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ color: '#fff', fontWeight: 500, fontSize: 15, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.descricao}</p>
+                    <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'center' }}>
+                      <span style={{ background: cat.color + '20', color: cat.color, fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 500 }}>{g.categoria}</span>
+                      <span style={{ color: '#8e8e93', fontSize: 11 }}>{format(new Date(g.data + 'T12:00:00'), 'dd/MM')}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="font-bold text-red-400">R$ {Number(g.valor).toFixed(2)}</span>
-                    <button onClick={() => excluir(g.id)} className="text-slate-700 hover:text-red-400 text-lg">×</button>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, gap: 8 }}>
+                    <span style={{ color: '#ff453a', fontWeight: 700, fontSize: 15 }}>- R$ {Number(g.valor).toFixed(2)}</span>
+                    <button onClick={() => excluir(g.id)}
+                      style={{ color: '#636366', fontSize: 18, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>×</button>
                   </div>
                 </div>
               )
@@ -177,56 +180,59 @@ export default function GastosPage() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Bottom Sheet */}
       {open && (
-        <div className="fixed inset-0 flex items-end justify-center z-50" style={{ background: 'rgba(0,0,0,0.8)' }}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 50, display: 'flex', alignItems: 'flex-end' }}
           onClick={e => e.target === e.currentTarget && setOpen(false)}>
-          <div className="w-full max-w-lg rounded-t-3xl p-6 overflow-y-auto" style={{ background: '#111827', maxHeight: '90vh' }}>
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-white">Novo Gasto</h2>
-              <button onClick={() => setOpen(false)} className="text-slate-500 text-2xl">×</button>
-            </div>
-            <form onSubmit={salvar} className="space-y-4">
-              <input type="text" placeholder="Descrição" required value={form.descricao}
-                onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
-                className="w-full px-4 py-3 rounded-xl text-white placeholder-slate-600 outline-none" style={{ background: '#1e293b' }} />
-              <input type="number" step="0.01" placeholder="Valor (R$)" required value={form.valor}
-                onChange={e => setForm(f => ({ ...f, valor: e.target.value }))}
-                className="w-full px-4 py-3 rounded-xl text-white placeholder-slate-600 outline-none" style={{ background: '#1e293b' }} />
+          <div className="sheet" style={{ width: '100%' }}>
+            <div style={{ width: 36, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 2, margin: '12px auto 20px' }} />
+            <div style={{ padding: '0 20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <h2 style={{ color: '#fff', fontSize: 18, fontWeight: 700, margin: 0 }}>Novo Gasto</h2>
+                <button onClick={() => setOpen(false)}
+                  style={{ background: '#2c2c2e', border: 'none', borderRadius: 20, width: 30, height: 30, color: '#8e8e93', cursor: 'pointer', fontSize: 16 }}>×</button>
+              </div>
 
-              <div>
-                <label className="text-xs text-slate-400 font-medium mb-2 block">Categoria</label>
-                <div className="grid grid-cols-5 gap-2">
-                  {CATEGORIAS.map(c => (
-                    <button type="button" key={c.label} onClick={() => setForm(f => ({ ...f, categoria: c.label }))}
-                      className="flex flex-col items-center gap-1 py-2 rounded-xl transition-all"
-                      style={{
-                        background: form.categoria === c.label ? c.color + '33' : '#1e293b',
-                        border: `1px solid ${form.categoria === c.label ? c.color : 'transparent'}`,
-                      }}>
-                      <span className="text-base">{c.icon}</span>
-                      <span className="text-slate-300" style={{ fontSize: '9px' }}>{c.label}</span>
-                    </button>
-                  ))}
+              <form onSubmit={salvar} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <input className="input" type="text" placeholder="Ex: Almoço no restaurante" required
+                  value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} />
+
+                <input className="input" type="number" inputMode="decimal" placeholder="0,00" required
+                  value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} />
+
+                {/* Categoria - scroll horizontal */}
+                <div>
+                  <label style={{ color: '#8e8e93', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Categoria</label>
+                  <div className="no-scroll-bar" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+                    {CATS.map(c => (
+                      <button type="button" key={c.label} onClick={() => setForm(f => ({ ...f, categoria: c.label }))}
+                        style={{
+                          flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
+                          padding: '8px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 13, fontWeight: 500,
+                          background: form.categoria === c.label ? c.color + '30' : 'rgba(255,255,255,0.06)',
+                          border: `1.5px solid ${form.categoria === c.label ? c.color : 'transparent'}`,
+                          color: form.categoria === c.label ? c.color : '#8e8e93',
+                        }}>
+                        <span>{c.icon}</span><span>{c.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl text-white outline-none" style={{ background: '#1e293b' }}>
-                  <option value="pessoal">👤 Pessoal</option>
-                  <option value="empresa">🏢 Empresa</option>
-                </select>
-                <input type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl text-white outline-none" style={{ background: '#1e293b' }} />
-              </div>
+                {/* Tipo + Data */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <select className="input" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}>
+                    <option value="pessoal">👤 Pessoal</option>
+                    <option value="empresa">🏢 Empresa</option>
+                  </select>
+                  <input className="input" type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} />
+                </div>
 
-              <button type="submit" disabled={saving}
-                className="w-full py-3.5 rounded-xl font-semibold text-white disabled:opacity-50"
-                style={{ background: '#6366f1' }}>
-                {saving ? 'Salvando...' : 'Salvar gasto'}
-              </button>
-            </form>
+                <button className="btn-primary" type="submit" disabled={saving}>
+                  {saving ? 'Salvando...' : 'Salvar gasto'}
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       )}

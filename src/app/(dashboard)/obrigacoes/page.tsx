@@ -1,58 +1,59 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 interface Obrigacao {
-  id: string
-  titulo: string
-  descricao: string
-  prazo: string
-  prioridade: 'baixa' | 'media' | 'alta'
-  tipo: 'pessoal' | 'empresa'
-  status: 'pendente' | 'concluida'
+  id: string; titulo: string; descricao?: string; status: 'pendente' | 'concluido';
+  prioridade: 'baixa' | 'media' | 'alta' | 'urgente'; prazo?: string; categoria: string
 }
 
-const cores = { baixa: '#22c55e', media: '#f59e0b', alta: '#ef4444' }
-const labelPrioridade = { baixa: 'Baixa', media: 'Média', alta: 'Alta' }
+const PRIORIDADES = {
+  urgente: { label: 'Urgente', color: '#ff453a', bg: '#ff453a20' },
+  alta:    { label: 'Alta',    color: '#ff9f0a', bg: '#ff9f0a20' },
+  media:   { label: 'Média',   color: '#6366f1', bg: '#6366f120' },
+  baixa:   { label: 'Baixa',   color: '#636366', bg: '#63636620' },
+}
+
+const CATS_TAREFAS = ['Pessoal', 'Empresa', 'Financeiro', 'Saúde', 'Compras', 'Casa', 'Outro']
 
 export default function ObrigacoesPage() {
   const [items, setItems] = useState<Obrigacao[]>([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ titulo: '', descricao: '', prazo: '', prioridade: 'media', tipo: 'pessoal' })
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [filtro, setFiltro] = useState<'pendente' | 'concluida'>('pendente')
+  const [filtro, setFiltro] = useState<'todos' | 'pendente' | 'concluido'>('todos')
+  const [form, setForm] = useState({
+    titulo: '', descricao: '', prioridade: 'media', categoria: 'Pessoal',
+    prazo: '', status: 'pendente',
+  })
 
   async function load() {
-    const res = await fetch('/api/obrigacoes')
-    setItems(await res.json())
+    const r = await fetch('/api/obrigacoes')
+    setItems(await r.json())
     setLoading(false)
   }
-
   useEffect(() => { load() }, [])
 
   async function salvar(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault(); setSaving(true)
     await fetch('/api/obrigacoes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
     })
     setOpen(false)
-    setForm({ titulo: '', descricao: '', prazo: '', prioridade: 'media', tipo: 'pessoal' })
-    await load()
-    setSaving(false)
+    setForm({ titulo: '', descricao: '', prioridade: 'media', categoria: 'Pessoal', prazo: '', status: 'pendente' })
+    await load(); setSaving(false)
   }
 
-  async function toggleStatus(item: Obrigacao) {
-    const novoStatus = item.status === 'pendente' ? 'concluida' : 'pendente'
+  async function toggleStatus(id: string, status: string) {
+    const novo = status === 'pendente' ? 'concluido' : 'pendente'
     await fetch('/api/obrigacoes', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: item.id, status: novoStatus }),
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status: novo }),
     })
-    setItems(prev => prev.map(x => x.id === item.id ? { ...x, status: novoStatus } : x))
+    setItems(prev => prev.map(x => x.id === id ? { ...x, status: novo as 'pendente' | 'concluido' } : x))
   }
 
   async function excluir(id: string) {
@@ -60,103 +61,151 @@ export default function ObrigacoesPage() {
     setItems(prev => prev.filter(x => x.id !== id))
   }
 
-  const filtrados = items.filter(x => x.status === filtro)
+  const filtrados = items.filter(x => filtro === 'todos' || x.status === filtro)
   const pendentes = items.filter(x => x.status === 'pendente').length
-  const concluidas = items.filter(x => x.status === 'concluida').length
+  const urgentes = items.filter(x => x.prioridade === 'urgente' && x.status === 'pendente').length
 
   return (
-    <div className="p-5">
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-xl font-bold text-white">Tarefas ✅</h1>
-        <button onClick={() => setOpen(true)} className="px-4 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: '#8b5cf6' }}>
-          + Nova
-        </button>
-      </div>
+    <div style={{ background: '#0a0a0a', minHeight: '100dvh', paddingBottom: 100 }}>
+      {/* Header */}
+      <div style={{ background: '#0a0a0a', padding: '52px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div>
+            <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 700, margin: 0 }}>Tarefas ✅</h1>
+            <p style={{ color: '#8e8e93', fontSize: 13, margin: '2px 0 0' }}>
+              {pendentes} pendente{pendentes !== 1 ? 's' : ''}{urgentes > 0 ? ` · ${urgentes} urgente${urgentes !== 1 ? 's' : ''}` : ''}
+            </p>
+          </div>
+          <button onClick={() => setOpen(true)}
+            style={{ padding: '9px 18px', background: '#8b5cf6', borderRadius: 12, color: '#fff', fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer' }}>
+            + Nova
+          </button>
+        </div>
 
-      {/* Filtros */}
-      <div className="flex gap-2 mb-4">
-        <button onClick={() => setFiltro('pendente')}
-          className="px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1"
-          style={{ background: filtro === 'pendente' ? '#f59e0b' : '#1e293b', color: filtro === 'pendente' ? '#fff' : '#94a3b8' }}>
-          ⏳ Pendentes ({pendentes})
-        </button>
-        <button onClick={() => setFiltro('concluida')}
-          className="px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1"
-          style={{ background: filtro === 'concluida' ? '#22c55e' : '#1e293b', color: filtro === 'concluida' ? '#fff' : '#94a3b8' }}>
-          ✅ Concluídas ({concluidas})
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="text-center text-slate-500 mt-10">Carregando...</div>
-      ) : filtrados.length === 0 ? (
-        <div className="text-center text-slate-500 mt-10">Nenhuma tarefa aqui</div>
-      ) : (
-        <div className="space-y-3">
-          {filtrados.map(item => (
-            <div key={item.id} className="rounded-2xl p-4" style={{ background: '#1e293b' }}>
-              <div className="flex items-start justify-between gap-3">
-                <button onClick={() => toggleStatus(item)} className="mt-0.5 flex-shrink-0">
-                  <div className="w-6 h-6 rounded-full border-2 flex items-center justify-center"
-                    style={{ borderColor: item.status === 'concluida' ? '#22c55e' : '#475569', background: item.status === 'concluida' ? '#22c55e' : 'transparent' }}>
-                    {item.status === 'concluida' && <span className="text-white text-xs">✓</span>}
-                  </div>
-                </button>
-                <div className="flex-1">
-                  <div className="text-white font-medium" style={{ textDecoration: item.status === 'concluida' ? 'line-through' : 'none', opacity: item.status === 'concluida' ? 0.6 : 1 }}>
-                    {item.titulo}
-                  </div>
-                  {item.descricao && <div className="text-sm text-slate-400 mt-0.5">{item.descricao}</div>}
-                  <div className="flex gap-2 mt-2">
-                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: cores[item.prioridade] + '22', color: cores[item.prioridade] }}>
-                      {labelPrioridade[item.prioridade]}
-                    </span>
-                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#334155', color: '#94a3b8' }}>
-                      {item.tipo}
-                    </span>
-                    {item.prazo && <span className="text-xs text-slate-500">📅 {item.prazo}</span>}
-                  </div>
-                </div>
-                <button onClick={() => excluir(item.id)} className="text-slate-600 hover:text-red-400 text-lg flex-shrink-0">×</button>
-              </div>
-            </div>
+        {/* Filtros */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {([['todos', 'Todas'], ['pendente', '⏳ Pendentes'], ['concluido', '✅ Concluídas']] as const).map(([val, lbl]) => (
+            <button key={val} onClick={() => setFiltro(val)}
+              style={{
+                flexShrink: 0, padding: '7px 14px', borderRadius: 20, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none',
+                background: filtro === val ? '#8b5cf6' : '#1c1c1e', color: filtro === val ? '#fff' : '#8e8e93',
+              }}>
+              {lbl}
+            </button>
           ))}
         </div>
-      )}
+      </div>
 
+      <div style={{ padding: '16px' }}>
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 76, borderRadius: 16 }} />)}
+          </div>
+        ) : filtrados.length === 0 ? (
+          <div style={{ textAlign: 'center', marginTop: 60 }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+            <p style={{ color: '#8e8e93' }}>{filtro === 'todos' ? 'Nenhuma tarefa' : filtro === 'concluido' ? 'Nenhuma tarefa concluída' : 'Sem pendências!'}</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {filtrados.map(item => {
+              const p = PRIORIDADES[item.prioridade]
+              return (
+                <div key={item.id} className="list-item"
+                  style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 8, opacity: item.status === 'concluido' ? 0.6 : 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 8 }}>
+                    <button onClick={() => toggleStatus(item.id, item.status)}
+                      style={{
+                        width: 24, height: 24, borderRadius: 8, flexShrink: 0, cursor: 'pointer',
+                        background: item.status === 'concluido' ? '#30d158' : 'transparent',
+                        border: `2px solid ${item.status === 'concluido' ? '#30d158' : '#48484a'}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                      {item.status === 'concluido' && <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>✓</span>}
+                    </button>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{
+                        color: '#fff', fontWeight: 500, fontSize: 15, margin: 0,
+                        textDecoration: item.status === 'concluido' ? 'line-through' : 'none',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>{item.titulo}</p>
+                    </div>
+
+                    <button onClick={() => excluir(item.id)}
+                      style={{ color: '#636366', fontSize: 20, background: 'none', border: 'none', cursor: 'pointer', padding: 4, flexShrink: 0 }}>×</button>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingLeft: 32 }}>
+                    <span style={{ background: p.bg, color: p.color, fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>{p.label}</span>
+                    <span style={{ background: 'rgba(255,255,255,0.06)', color: '#8e8e93', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>{item.categoria}</span>
+                    {item.prazo && (
+                      <span style={{ background: 'rgba(255,255,255,0.06)', color: '#8e8e93', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>
+                        📅 {format(new Date(item.prazo + 'T12:00:00'), 'dd/MM/yyyy')}
+                      </span>
+                    )}
+                  </div>
+                  {item.descricao && (
+                    <p style={{ color: '#8e8e93', fontSize: 13, margin: 0, paddingLeft: 32 }}>{item.descricao}</p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Sheet */}
       {open && (
-        <div className="fixed inset-0 flex items-end justify-center z-50" style={{ background: 'rgba(0,0,0,0.7)' }}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 50, display: 'flex', alignItems: 'flex-end' }}
           onClick={e => e.target === e.currentTarget && setOpen(false)}>
-          <div className="w-full max-w-lg rounded-t-3xl p-6" style={{ background: '#1e293b' }}>
-            <h2 className="text-lg font-bold text-white mb-4">Nova Tarefa</h2>
-            <form onSubmit={salvar} className="space-y-3">
-              <input type="text" placeholder="Título" required value={form.titulo}
-                onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))}
-                className="w-full px-4 py-3 rounded-xl text-white placeholder-slate-500 outline-none" style={{ background: '#0f172a' }} />
-              <textarea placeholder="Descrição (opcional)" value={form.descricao}
-                onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
-                rows={2} className="w-full px-4 py-3 rounded-xl text-white placeholder-slate-500 outline-none resize-none" style={{ background: '#0f172a' }} />
-              <input type="date" placeholder="Prazo" value={form.prazo}
-                onChange={e => setForm(f => ({ ...f, prazo: e.target.value }))}
-                className="w-full px-4 py-3 rounded-xl text-white outline-none" style={{ background: '#0f172a' }} />
-              <div className="grid grid-cols-2 gap-3">
-                <select value={form.prioridade} onChange={e => setForm(f => ({ ...f, prioridade: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl text-white outline-none" style={{ background: '#0f172a' }}>
-                  <option value="baixa">Prioridade Baixa</option>
-                  <option value="media">Prioridade Média</option>
-                  <option value="alta">Prioridade Alta</option>
-                </select>
-                <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl text-white outline-none" style={{ background: '#0f172a' }}>
-                  <option value="pessoal">Pessoal</option>
-                  <option value="empresa">Empresa</option>
-                </select>
+          <div className="sheet" style={{ width: '100%' }}>
+            <div style={{ width: 36, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 2, margin: '12px auto 20px' }} />
+            <div style={{ padding: '0 20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <h2 style={{ color: '#fff', fontSize: 18, fontWeight: 700, margin: 0 }}>Nova Tarefa</h2>
+                <button onClick={() => setOpen(false)}
+                  style={{ background: '#2c2c2e', border: 'none', borderRadius: 20, width: 30, height: 30, color: '#8e8e93', cursor: 'pointer', fontSize: 16 }}>×</button>
               </div>
-              <button type="submit" disabled={saving}
-                className="w-full py-3 rounded-xl font-semibold text-white disabled:opacity-50" style={{ background: '#8b5cf6' }}>
-                {saving ? 'Salvando...' : 'Salvar'}
-              </button>
-            </form>
+
+              <form onSubmit={salvar} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <input className="input" type="text" placeholder="Título da tarefa" required
+                  value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} />
+
+                <textarea className="input" placeholder="Descrição (opcional)" rows={2}
+                  value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
+                  style={{ resize: 'none', fontSize: 16 }} />
+
+                {/* Prioridade */}
+                <div>
+                  <label style={{ color: '#8e8e93', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Prioridade</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {(Object.entries(PRIORIDADES) as [string, typeof PRIORIDADES['baixa']][]).map(([key, p]) => (
+                      <button type="button" key={key} onClick={() => setForm(f => ({ ...f, prioridade: key }))}
+                        style={{
+                          flex: 1, padding: '9px 4px', borderRadius: 12, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                          background: form.prioridade === key ? p.bg : 'rgba(255,255,255,0.05)',
+                          border: `1.5px solid ${form.prioridade === key ? p.color : 'transparent'}`,
+                          color: form.prioridade === key ? p.color : '#8e8e93',
+                        }}>
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <select className="input" value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}>
+                    {CATS_TAREFAS.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                  <input className="input" type="date" value={form.prazo} onChange={e => setForm(f => ({ ...f, prazo: e.target.value }))} />
+                </div>
+
+                <button className="btn-primary" type="submit" disabled={saving}>
+                  {saving ? 'Salvando...' : 'Criar tarefa'}
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       )}
