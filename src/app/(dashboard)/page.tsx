@@ -69,7 +69,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div style={{ background: '#0a0a0a', minHeight: '100dvh', padding: '52px 16px 100px' }}>
+      <div style={{ background: '#0a0a0a', minHeight: '100dvh', padding: '20px 16px 40px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {[180, 120, 80, 80].map((h, i) => <div key={i} className="skeleton" style={{ height: h, borderRadius: 20 }} />)}
         </div>
@@ -78,9 +78,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ background: '#0a0a0a', minHeight: '100dvh', paddingBottom: 100 }}>
+    <div style={{ background: '#0a0a0a', minHeight: '100dvh', paddingBottom: 40 }}>
       {/* Header */}
-      <div style={{ padding: '52px 20px 20px' }}>
+      <div style={{ padding: '20px 20px 20px' }}>
         <p style={{ color: '#8e8e93', fontSize: 13, margin: '0 0 2px', textTransform: 'capitalize' }}>
           {format(hoje, "EEEE, dd 'de' MMMM", { locale: ptBR })}
         </p>

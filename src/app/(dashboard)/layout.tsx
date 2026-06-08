@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
 import { createServerSupabase } from '@/lib/supabase-server'
-import BottomNav from '@/components/BottomNav'
+import TopNav from '@/components/TopNav'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabase()
@@ -11,9 +11,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!user) redirect('/login')
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: '#0f172a' }}>
-      {children}
-      <BottomNav />
+    <div style={{ background: '#0a0a0a', minHeight: '100dvh' }}>
+      <TopNav />
+      {/* Empurra o conteúdo para baixo do TopNav */}
+      <div style={{ paddingTop: 'calc(54px + env(safe-area-inset-top, 0px))' }}>
+        {children}
+      </div>
     </div>
   )
 }

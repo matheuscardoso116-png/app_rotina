@@ -3,23 +3,23 @@
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { useBodyLock } from '@/hooks/useBodyLock'
+import BottomSheet from '@/components/BottomSheet'
 
 interface Treino {
   id: string; tipo: string; duracao_min: number | null; observacoes: string | null; grupos_musculares: string; data: string
 }
 
 const GRUPOS = [
-  { id: 'Peito', icon: '🫀', color: '#ef4444' },
-  { id: 'Costas', icon: '🏋️', color: '#3b82f6' },
-  { id: 'Bíceps', icon: '💪', color: '#f59e0b' },
-  { id: 'Tríceps', icon: '🦾', color: '#8b5cf6' },
-  { id: 'Ombros', icon: '🤸', color: '#06b6d4' },
-  { id: 'Pernas', icon: '🦵', color: '#10b981' },
-  { id: 'Glúteo', icon: '⬛', color: '#ec4899' },
-  { id: 'Abdômen', icon: '⚡', color: '#f97316' },
-  { id: 'Cardio', icon: '🏃', color: '#22c55e' },
-  { id: 'Funcional', icon: '🔥', color: '#6366f1' },
+  { id: 'Peito',    icon: '🫀', color: '#ef4444' },
+  { id: 'Costas',   icon: '🏋️', color: '#3b82f6' },
+  { id: 'Bíceps',   icon: '💪', color: '#f59e0b' },
+  { id: 'Tríceps',  icon: '🦾', color: '#8b5cf6' },
+  { id: 'Ombros',   icon: '🤸', color: '#06b6d4' },
+  { id: 'Pernas',   icon: '🦵', color: '#10b981' },
+  { id: 'Glúteo',   icon: '⬛', color: '#ec4899' },
+  { id: 'Abdômen',  icon: '⚡', color: '#f97316' },
+  { id: 'Cardio',   icon: '🏃', color: '#22c55e' },
+  { id: 'Funcional',icon: '🔥', color: '#6366f1' },
 ]
 
 const TIPOS = ['Musculação', 'Corrida', 'Ciclismo', 'Natação', 'Crossfit', 'Yoga', 'Caminhada', 'Futebol', 'Outro']
@@ -34,8 +34,6 @@ export default function TreinosPage() {
     grupos: [] as string[], data: format(new Date(), 'yyyy-MM-dd'),
   })
 
-  useBodyLock(open)
-
   async function load() {
     const r = await fetch('/api/treinos')
     setTreinos(await r.json())
@@ -44,9 +42,7 @@ export default function TreinosPage() {
   useEffect(() => { load() }, [])
 
   function toggleGrupo(g: string) {
-    setForm(f => ({
-      ...f, grupos: f.grupos.includes(g) ? f.grupos.filter(x => x !== g) : [...f.grupos, g],
-    }))
+    setForm(f => ({ ...f, grupos: f.grupos.includes(g) ? f.grupos.filter(x => x !== g) : [...f.grupos, g] }))
   }
 
   async function salvar(e: React.FormEvent) {
@@ -66,19 +62,16 @@ export default function TreinosPage() {
   }
 
   return (
-    <div style={{ background: '#0a0a0a', minHeight: '100dvh', paddingBottom: 100 }}>
-      {/* Header */}
-      <div style={{ background: '#0a0a0a', padding: '52px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 700, margin: 0 }}>Treinos 💪</h1>
-            <p style={{ color: '#8e8e93', fontSize: 13, margin: '2px 0 0' }}>{treinos.length} registros</p>
-          </div>
-          <button onClick={() => setOpen(true)}
-            style={{ padding: '9px 18px', background: '#3b82f6', borderRadius: 12, color: '#fff', fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer' }}>
-            + Novo
-          </button>
+    <div style={{ background: '#0a0a0a', minHeight: '100dvh', paddingBottom: 40 }}>
+      <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: 0 }}>Treinos 💪</h1>
+          <p style={{ color: '#8e8e93', fontSize: 13, margin: '2px 0 0' }}>{treinos.length} registros</p>
         </div>
+        <button onClick={() => setOpen(true)}
+          style={{ padding: '9px 18px', background: '#3b82f6', borderRadius: 12, color: '#fff', fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer' }}>
+          + Novo
+        </button>
       </div>
 
       <div style={{ padding: '16px' }}>
@@ -108,19 +101,14 @@ export default function TreinosPage() {
                         </p>
                       </div>
                     </div>
-                    <button onClick={() => excluir(t.id)}
-                      style={{ color: '#636366', fontSize: 22, background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>×</button>
+                    <button onClick={() => excluir(t.id)} style={{ color: '#636366', fontSize: 22, background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>×</button>
                   </div>
                   {grupos.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {grupos.map(g => {
                         const gr = GRUPOS.find(x => x.id === g)
                         return (
-                          <span key={g} style={{
-                            background: (gr?.color ?? '#64748b') + '22',
-                            color: gr?.color ?? '#94a3b8',
-                            fontSize: 11, padding: '3px 10px', borderRadius: 10, fontWeight: 500,
-                          }}>
+                          <span key={g} style={{ background: (gr?.color ?? '#64748b') + '22', color: gr?.color ?? '#94a3b8', fontSize: 11, padding: '3px 10px', borderRadius: 10, fontWeight: 500 }}>
                             {gr?.icon} {g}
                           </span>
                         )
@@ -135,66 +123,42 @@ export default function TreinosPage() {
         )}
       </div>
 
-      {/* Bottom Sheet */}
-      {open && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 50, display: 'flex', alignItems: 'flex-end' }}
-          onClick={e => e.target === e.currentTarget && setOpen(false)}>
-          <div className="sheet" style={{ width: '100%' }}>
-            <div style={{ width: 36, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 2, margin: '12px auto 20px' }} />
-            <div style={{ padding: '0 20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <h2 style={{ color: '#fff', fontSize: 18, fontWeight: 700, margin: 0 }}>Novo Treino</h2>
-                <button onClick={() => setOpen(false)}
-                  style={{ background: '#2c2c2e', border: 'none', borderRadius: 20, width: 30, height: 30, color: '#8e8e93', cursor: 'pointer', fontSize: 16 }}>×</button>
-              </div>
+      <BottomSheet open={open} onClose={() => setOpen(false)} title="Novo Treino">
+        <form onSubmit={salvar} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <select className="input" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}>
+            {TIPOS.map(t => <option key={t}>{t}</option>)}
+          </select>
 
-              <form onSubmit={salvar} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <select className="input" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}>
-                  {TIPOS.map(t => <option key={t}>{t}</option>)}
-                </select>
-
-                {/* Grupos musculares - chips wrap */}
-                <div>
-                  <label style={{ color: '#8e8e93', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                    Grupos musculares
-                  </label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {GRUPOS.map(g => {
-                      const sel = form.grupos.includes(g.id)
-                      return (
-                        <button type="button" key={g.id} onClick={() => toggleGrupo(g.id)}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 5,
-                            padding: '8px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 13, fontWeight: 500,
-                            background: sel ? g.color + '30' : 'rgba(255,255,255,0.06)',
-                            border: `1.5px solid ${sel ? g.color : 'transparent'}`,
-                            color: sel ? g.color : '#8e8e93',
-                          }}>
-                          {g.icon} {g.id}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <input className="input" type="number" inputMode="numeric" placeholder="Duração (min)"
-                    value={form.duracao_min} onChange={e => setForm(f => ({ ...f, duracao_min: e.target.value }))} />
-                  <input className="input" type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} />
-                </div>
-
-                <textarea className="input" placeholder="Observações (ex: supino 80kg 4x10)" rows={2}
-                  value={form.observacoes ?? ''} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))}
-                  style={{ resize: 'none', fontSize: 16 }} />
-
-                <button className="btn-primary" type="submit" disabled={saving}>
-                  {saving ? 'Salvando...' : 'Salvar treino'}
-                </button>
-              </form>
+          <div>
+            <label style={{ color: '#8e8e93', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Grupos musculares</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {GRUPOS.map(g => {
+                const sel = form.grupos.includes(g.id)
+                return (
+                  <button type="button" key={g.id} onClick={() => toggleGrupo(g.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 13, fontWeight: 500, background: sel ? g.color + '30' : 'rgba(255,255,255,0.06)', border: `1.5px solid ${sel ? g.color : 'transparent'}`, color: sel ? g.color : '#8e8e93' }}>
+                    {g.icon} {g.id}
+                  </button>
+                )
+              })}
             </div>
           </div>
-        </div>
-      )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <input className="input" type="number" inputMode="numeric" placeholder="Duração (min)"
+              value={form.duracao_min} onChange={e => setForm(f => ({ ...f, duracao_min: e.target.value }))} />
+            <input className="input" type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} />
+          </div>
+
+          <textarea className="input" placeholder="Observações (ex: supino 80kg 4x10)" rows={2}
+            value={form.observacoes ?? ''} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))}
+            style={{ resize: 'none', fontSize: 16 }} />
+
+          <button className="btn-primary" type="submit" disabled={saving} style={{ marginBottom: 8 }}>
+            {saving ? 'Salvando...' : 'Salvar treino'}
+          </button>
+        </form>
+      </BottomSheet>
     </div>
   )
 }

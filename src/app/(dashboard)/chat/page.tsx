@@ -56,7 +56,7 @@ export default function ChatPage() {
   return (
     <div style={{ background: '#0a0a0a', display: 'flex', flexDirection: 'column', height: '100dvh' }}>
       {/* Header fixo */}
-      <div style={{ background: '#0a0a0a', padding: '52px 20px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+      <div style={{ background: '#0a0a0a', padding: '16px 20px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: 0 }}>Chat IA 🤖</h1>
@@ -134,7 +134,7 @@ export default function ChatPage() {
       {/* Input fixo na parte inferior */}
       <div style={{
         flexShrink: 0, padding: '12px 16px',
-        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
         background: '#0a0a0a',
         borderTop: '1px solid rgba(255,255,255,0.06)',
       }}>

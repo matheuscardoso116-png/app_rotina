@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { useBodyLock } from '@/hooks/useBodyLock'
+import BottomSheet from '@/components/BottomSheet'
 
 interface Gasto {
   id: string; descricao: string; valor: number; categoria: string; tipo: 'pessoal' | 'empresa'; data: string
@@ -11,15 +11,15 @@ interface Gasto {
 
 const CATS = [
   { label: 'Alimentação', icon: '🍔', color: '#f59e0b' },
-  { label: 'Transporte', icon: '🚗', color: '#3b82f6' },
-  { label: 'Moradia', icon: '🏠', color: '#8b5cf6' },
-  { label: 'Saúde', icon: '💊', color: '#10b981' },
-  { label: 'Lazer', icon: '🎮', color: '#ec4899' },
-  { label: 'Educação', icon: '📚', color: '#06b6d4' },
-  { label: 'Fornecedor', icon: '📦', color: '#f97316' },
+  { label: 'Transporte',  icon: '🚗', color: '#3b82f6' },
+  { label: 'Moradia',     icon: '🏠', color: '#8b5cf6' },
+  { label: 'Saúde',       icon: '💊', color: '#10b981' },
+  { label: 'Lazer',       icon: '🎮', color: '#ec4899' },
+  { label: 'Educação',    icon: '📚', color: '#06b6d4' },
+  { label: 'Fornecedor',  icon: '📦', color: '#f97316' },
   { label: 'Funcionário', icon: '👤', color: '#6366f1' },
-  { label: 'Marketing', icon: '📣', color: '#84cc16' },
-  { label: 'Outros', icon: '💼', color: '#64748b' },
+  { label: 'Marketing',   icon: '📣', color: '#84cc16' },
+  { label: 'Outros',      icon: '💼', color: '#64748b' },
 ]
 const getC = (l: string) => CATS.find(c => c.label === l) ?? CATS[9]
 
@@ -42,8 +42,6 @@ export default function GastosPage() {
     descricao: '', valor: '', categoria: 'Alimentação', tipo: 'pessoal',
     data: format(new Date(), 'yyyy-MM-dd'),
   })
-
-  useBodyLock(open)
 
   async function load() {
     const r = await fetch('/api/gastos')
@@ -69,17 +67,17 @@ export default function GastosPage() {
   }
 
   const filtrados = gastos.filter(g => filtro === 'todos' || g.tipo === filtro).filter(g => !catFiltro || g.categoria === catFiltro)
-  const total = filtrados.reduce((s, g) => s + Number(g.valor), 0)
-  const pessoal = gastos.filter(g => g.tipo === 'pessoal').reduce((s, g) => s + Number(g.valor), 0)
-  const empresa = gastos.filter(g => g.tipo === 'empresa').reduce((s, g) => s + Number(g.valor), 0)
+  const total    = filtrados.reduce((s, g) => s + Number(g.valor), 0)
+  const pessoal  = gastos.filter(g => g.tipo === 'pessoal').reduce((s, g) => s + Number(g.valor), 0)
+  const empresa  = gastos.filter(g => g.tipo === 'empresa').reduce((s, g) => s + Number(g.valor), 0)
 
   return (
-    <div style={{ background: '#0a0a0a', minHeight: '100dvh', paddingBottom: 100 }}>
+    <div style={{ background: '#0a0a0a', minHeight: '100dvh', paddingBottom: 40 }}>
       {/* Header */}
-      <div style={{ background: '#0a0a0a', padding: '52px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
-            <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 700, margin: 0 }}>Finanças</h1>
+            <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: 0 }}>Finanças</h1>
             <p style={{ color: '#8e8e93', fontSize: 13, margin: '2px 0 0' }}>
               {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
             </p>
@@ -99,7 +97,7 @@ export default function GastosPage() {
         {/* Totais */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
           {[
-            { label: 'Total', val: total, color: '#ff453a' },
+            { label: 'Total',   val: total,   color: '#ff453a' },
             { label: 'Pessoal', val: pessoal, color: '#ff9f0a' },
             { label: 'Empresa', val: empresa, color: '#bf5af2' },
           ].map(x => (
@@ -116,10 +114,7 @@ export default function GastosPage() {
         <div className="no-scroll-bar" style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 12, paddingBottom: 4 }}>
           {(['todos', 'pessoal', 'empresa'] as const).map(f => (
             <button key={f} onClick={() => setFiltro(f)}
-              style={{
-                flexShrink: 0, padding: '7px 14px', borderRadius: 20, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none',
-                background: filtro === f ? '#6366f1' : '#1c1c1e', color: filtro === f ? '#fff' : '#8e8e93',
-              }}>
+              style={{ flexShrink: 0, padding: '7px 14px', borderRadius: 20, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none', background: filtro === f ? '#6366f1' : '#1c1c1e', color: filtro === f ? '#fff' : '#8e8e93' }}>
               {f === 'todos' ? 'Todos' : f === 'pessoal' ? '👤 Pessoal' : '🏢 Empresa'}
             </button>
           ))}
@@ -128,26 +123,17 @@ export default function GastosPage() {
         {/* Filtro categoria */}
         <div className="no-scroll-bar" style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 16, paddingBottom: 4 }}>
           <button onClick={() => setCatFiltro('')}
-            style={{
-              flexShrink: 0, padding: '6px 12px', borderRadius: 16, fontSize: 12, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)',
-              background: !catFiltro ? 'rgba(99,102,241,0.2)' : '#141414', color: !catFiltro ? '#818cf8' : '#8e8e93',
-            }}>
+            style={{ flexShrink: 0, padding: '6px 12px', borderRadius: 16, fontSize: 12, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)', background: !catFiltro ? 'rgba(99,102,241,0.2)' : '#141414', color: !catFiltro ? '#818cf8' : '#8e8e93' }}>
             Todas
           </button>
           {CATS.map(c => (
             <button key={c.label} onClick={() => setCatFiltro(catFiltro === c.label ? '' : c.label)}
-              style={{
-                flexShrink: 0, padding: '6px 12px', borderRadius: 16, fontSize: 12, cursor: 'pointer',
-                background: catFiltro === c.label ? c.color + '22' : '#141414',
-                border: `1px solid ${catFiltro === c.label ? c.color : 'rgba(255,255,255,0.07)'}`,
-                color: catFiltro === c.label ? c.color : '#8e8e93',
-              }}>
+              style={{ flexShrink: 0, padding: '6px 12px', borderRadius: 16, fontSize: 12, cursor: 'pointer', background: catFiltro === c.label ? c.color + '22' : '#141414', border: `1px solid ${catFiltro === c.label ? c.color : 'rgba(255,255,255,0.07)'}`, color: catFiltro === c.label ? c.color : '#8e8e93' }}>
               {c.icon} {c.label}
             </button>
           ))}
         </div>
 
-        {/* Lista */}
         {loading ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 72, borderRadius: 16 }} />)}
@@ -166,15 +152,14 @@ export default function GastosPage() {
                   <div className="icon-circle" style={{ background: cat.color + '20', fontSize: 22 }}>{cat.icon}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ color: '#fff', fontWeight: 500, fontSize: 15, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.descricao}</p>
-                    <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                       <span style={{ background: cat.color + '20', color: cat.color, fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 500 }}>{g.categoria}</span>
                       <span style={{ color: '#8e8e93', fontSize: 11 }}>{format(new Date(g.data + 'T12:00:00'), 'dd/MM')}</span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, gap: 8 }}>
                     <span style={{ color: '#ff453a', fontWeight: 700, fontSize: 15 }}>- R$ {Number(g.valor).toFixed(2)}</span>
-                    <button onClick={() => excluir(g.id)}
-                      style={{ color: '#636366', fontSize: 18, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>×</button>
+                    <button onClick={() => excluir(g.id)} style={{ color: '#636366', fontSize: 20, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>×</button>
                   </div>
                 </div>
               )
@@ -183,62 +168,39 @@ export default function GastosPage() {
         )}
       </div>
 
-      {/* Bottom Sheet */}
-      {open && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 50, display: 'flex', alignItems: 'flex-end' }}
-          onClick={e => e.target === e.currentTarget && setOpen(false)}>
-          <div className="sheet" style={{ width: '100%' }}>
-            <div style={{ width: 36, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 2, margin: '12px auto 20px' }} />
-            <div style={{ padding: '0 20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <h2 style={{ color: '#fff', fontSize: 18, fontWeight: 700, margin: 0 }}>Novo Gasto</h2>
-                <button onClick={() => setOpen(false)}
-                  style={{ background: '#2c2c2e', border: 'none', borderRadius: 20, width: 30, height: 30, color: '#8e8e93', cursor: 'pointer', fontSize: 16 }}>×</button>
-              </div>
+      <BottomSheet open={open} onClose={() => setOpen(false)} title="Novo Gasto">
+        <form onSubmit={salvar} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <input className="input" type="text" placeholder="Ex: Almoço no restaurante" required
+            value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} />
 
-              <form onSubmit={salvar} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <input className="input" type="text" placeholder="Ex: Almoço no restaurante" required
-                  value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} />
+          <input className="input" type="number" inputMode="decimal" placeholder="Valor (R$)" required
+            value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} />
 
-                <input className="input" type="number" inputMode="decimal" placeholder="0,00" required
-                  value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} />
-
-                {/* Categoria - scroll horizontal */}
-                <div>
-                  <label style={{ color: '#8e8e93', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Categoria</label>
-                  <div className="no-scroll-bar" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-                    {CATS.map(c => (
-                      <button type="button" key={c.label} onClick={() => setForm(f => ({ ...f, categoria: c.label }))}
-                        style={{
-                          flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
-                          padding: '8px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 13, fontWeight: 500,
-                          background: form.categoria === c.label ? c.color + '30' : 'rgba(255,255,255,0.06)',
-                          border: `1.5px solid ${form.categoria === c.label ? c.color : 'transparent'}`,
-                          color: form.categoria === c.label ? c.color : '#8e8e93',
-                        }}>
-                        <span>{c.icon}</span><span>{c.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Tipo + Data */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <select className="input" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}>
-                    <option value="pessoal">👤 Pessoal</option>
-                    <option value="empresa">🏢 Empresa</option>
-                  </select>
-                  <input className="input" type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} />
-                </div>
-
-                <button className="btn-primary" type="submit" disabled={saving}>
-                  {saving ? 'Salvando...' : 'Salvar gasto'}
+          <div>
+            <label style={{ color: '#8e8e93', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Categoria</label>
+            <div className="no-scroll-bar" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+              {CATS.map(c => (
+                <button type="button" key={c.label} onClick={() => setForm(f => ({ ...f, categoria: c.label }))}
+                  style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 13, fontWeight: 500, background: form.categoria === c.label ? c.color + '30' : 'rgba(255,255,255,0.06)', border: `1.5px solid ${form.categoria === c.label ? c.color : 'transparent'}`, color: form.categoria === c.label ? c.color : '#8e8e93' }}>
+                  <span>{c.icon}</span><span>{c.label}</span>
                 </button>
-              </form>
+              ))}
             </div>
           </div>
-        </div>
-      )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <select className="input" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}>
+              <option value="pessoal">👤 Pessoal</option>
+              <option value="empresa">🏢 Empresa</option>
+            </select>
+            <input className="input" type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} />
+          </div>
+
+          <button className="btn-primary" type="submit" disabled={saving} style={{ marginBottom: 8 }}>
+            {saving ? 'Salvando...' : 'Salvar gasto'}
+          </button>
+        </form>
+      </BottomSheet>
     </div>
   )
 }
