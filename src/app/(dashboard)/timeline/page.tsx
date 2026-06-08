@@ -24,7 +24,7 @@ const TIPO_CONFIG: Record<string, { icon: string; color: string; label: string }
   outro:     { icon: '📝', color: '#64748b', label: 'Outro' },
 }
 
-const WHATSAPP_NUMBER = '5511999999999' // substituído pelo número real via env no build
+const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '5562982590727'
 
 export default function TimelinePage() {
   const [eventos, setEventos] = useState<Evento[]>([])
