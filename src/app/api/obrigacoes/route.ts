@@ -21,6 +21,8 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
   const body = await req.json()
+  // prazo vazio deve ser null (não string vazia — quebraria a coluna date)
+  if (body.prazo === '' || body.prazo === undefined) body.prazo = null
   const { data, error } = await supabase
     .from('obrigacoes')
     .insert({ ...body, user_id: user.id })

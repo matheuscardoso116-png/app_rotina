@@ -7,7 +7,7 @@ import BottomSheet from '@/components/BottomSheet'
 
 interface Obrigacao {
   id: string; titulo: string; descricao?: string; status: 'pendente' | 'concluido';
-  prioridade: 'baixa' | 'media' | 'alta' | 'urgente'; prazo?: string; categoria: string
+  prioridade: 'baixa' | 'media' | 'alta' | 'urgente'; prazo?: string; tipo: string
 }
 
 const PRIORIDADES = {
@@ -17,7 +17,15 @@ const PRIORIDADES = {
   baixa:   { label: 'Baixa',   color: '#636366', bg: '#63636620' },
 }
 
-const CATS_TAREFAS = ['Pessoal', 'Empresa', 'Financeiro', 'Saúde', 'Compras', 'Casa', 'Outro']
+const CATS_TAREFAS = [
+  { label: 'Pessoal',    value: 'pessoal' },
+  { label: 'Empresa',    value: 'empresa' },
+  { label: 'Financeiro', value: 'empresa' },
+  { label: 'Saúde',      value: 'pessoal' },
+  { label: 'Compras',    value: 'pessoal' },
+  { label: 'Casa',       value: 'pessoal' },
+  { label: 'Outro',      value: 'pessoal' },
+]
 
 export default function ObrigacoesPage() {
   const [items, setItems] = useState<Obrigacao[]>([])
@@ -26,7 +34,7 @@ export default function ObrigacoesPage() {
   const [saving, setSaving] = useState(false)
   const [filtro, setFiltro] = useState<'todos' | 'pendente' | 'concluido'>('todos')
   const [form, setForm] = useState({
-    titulo: '', descricao: '', prioridade: 'media', categoria: 'Pessoal', prazo: '', status: 'pendente',
+    titulo: '', descricao: '', prioridade: 'media', tipo: 'pessoal', tipoLabel: 'Pessoal', prazo: '', status: 'pendente',
   })
 
   async function load() {
@@ -46,7 +54,7 @@ export default function ObrigacoesPage() {
     try {
       const r = await fetch('/api/obrigacoes', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, tipoLabel: undefined }),
       })
       if (!r.ok) {
         const err = await r.json().catch(() => ({}))
@@ -54,7 +62,7 @@ export default function ObrigacoesPage() {
         return
       }
       setOpen(false)
-      setForm({ titulo: '', descricao: '', prioridade: 'media', categoria: 'Pessoal', prazo: '', status: 'pendente' })
+      setForm({ titulo: '', descricao: '', prioridade: 'media', tipo: 'pessoal', tipoLabel: 'Pessoal', prazo: '', status: 'pendente' })
       await load()
     } catch (e) {
       alert('Erro de rede: ' + String(e))
@@ -134,7 +142,7 @@ export default function ObrigacoesPage() {
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingLeft: 32 }}>
                     <span style={{ background: p.bg, color: p.color, fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>{p.label}</span>
-                    <span style={{ background: 'rgba(255,255,255,0.06)', color: '#8e8e93', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>{item.categoria}</span>
+                    <span style={{ background: 'rgba(255,255,255,0.06)', color: '#8e8e93', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>{item.tipo === 'pessoal' ? 'Pessoal' : 'Empresa'}</span>
                     {item.prazo && <span style={{ background: 'rgba(255,255,255,0.06)', color: '#8e8e93', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>📅 {format(new Date(item.prazo + 'T12:00:00'), 'dd/MM/yyyy')}</span>}
                   </div>
                   {item.descricao && <p style={{ color: '#8e8e93', fontSize: 13, margin: 0, paddingLeft: 32 }}>{item.descricao}</p>}
@@ -166,8 +174,12 @@ export default function ObrigacoesPage() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <select className="input" value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}>
-              {CATS_TAREFAS.map(c => <option key={c}>{c}</option>)}
+            <select className="input" value={form.tipoLabel}
+              onChange={e => {
+                const found = CATS_TAREFAS.find(c => c.label === e.target.value)
+                setForm(f => ({ ...f, tipoLabel: e.target.value, tipo: found?.value ?? 'pessoal' }))
+              }}>
+              {CATS_TAREFAS.map(c => <option key={c.value + c.label} value={c.label}>{c.label}</option>)}
             </select>
             <input className="input" type="date" value={form.prazo} onChange={e => setForm(f => ({ ...f, prazo: e.target.value }))} />
           </div>

@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
       const { error } = await supabase.from('obrigacoes').insert({
         user_id: userId, titulo: d.descricao,
         prioridade: d.prioridade ?? 'media',
-        categoria: 'Pessoal', status: 'pendente',
+        tipo: 'pessoal', status: 'pendente',
       })
       if (error) console.error('[wa] insert tarefa:', error.message)
       else console.log('[wa] ✓ tarefa registrada:', d.descricao)
