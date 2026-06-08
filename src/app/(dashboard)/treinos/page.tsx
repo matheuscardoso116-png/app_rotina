@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { useBodyLock } from '@/hooks/useBodyLock'
 
 interface Treino {
   id: string; tipo: string; duracao_min: number | null; observacoes: string | null; grupos_musculares: string; data: string
@@ -32,6 +33,8 @@ export default function TreinosPage() {
     tipo: 'Musculação', duracao_min: '', observacoes: '',
     grupos: [] as string[], data: format(new Date(), 'yyyy-MM-dd'),
   })
+
+  useBodyLock(open)
 
   async function load() {
     const r = await fetch('/api/treinos')

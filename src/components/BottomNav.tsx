@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useState } from 'react'
+import { useBodyLock } from '@/hooks/useBodyLock'
 
 const mainTabs = [
   { href: '/', label: 'Início', icon: '🏠' },
@@ -32,6 +33,7 @@ export default function BottomNav() {
   const [showFab, setShowFab] = useState(false)
   const [showMore, setShowMore] = useState(false)
   const isMoreActive = moreTabs.some(t => pathname === t.href)
+  useBodyLock(showFab || showMore)
 
   return (
     <>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { useBodyLock } from '@/hooks/useBodyLock'
 
 interface Obrigacao {
   id: string; titulo: string; descricao?: string; status: 'pendente' | 'concluido';
@@ -28,6 +29,8 @@ export default function ObrigacoesPage() {
     titulo: '', descricao: '', prioridade: 'media', categoria: 'Pessoal',
     prazo: '', status: 'pendente',
   })
+
+  useBodyLock(open)
 
   async function load() {
     const r = await fetch('/api/obrigacoes')

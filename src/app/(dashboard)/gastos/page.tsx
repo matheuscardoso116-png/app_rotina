@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { useBodyLock } from '@/hooks/useBodyLock'
 
 interface Gasto {
   id: string; descricao: string; valor: number; categoria: string; tipo: 'pessoal' | 'empresa'; data: string
@@ -41,6 +42,8 @@ export default function GastosPage() {
     descricao: '', valor: '', categoria: 'Alimentação', tipo: 'pessoal',
     data: format(new Date(), 'yyyy-MM-dd'),
   })
+
+  useBodyLock(open)
 
   async function load() {
     const r = await fetch('/api/gastos')

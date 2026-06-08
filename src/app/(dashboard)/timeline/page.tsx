@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { useBodyLock } from '@/hooks/useBodyLock'
 
 interface TimelineItem {
   id: string; titulo: string; descricao?: string; tipo: string; hora: string
@@ -28,6 +29,8 @@ export default function TimelinePage() {
     titulo: '', descricao: '', tipo: 'trabalho',
     hora: format(new Date(), 'HH:mm'),
   })
+
+  useBodyLock(open)
 
   async function load() {
     const r = await fetch('/api/timeline')
