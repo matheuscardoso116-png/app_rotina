@@ -112,8 +112,27 @@ export default function TopNav() {
               })}
             </nav>
 
-            {/* Perfil no rodapé do drawer */}
+            {/* Rodapé do drawer: WhatsApp + Perfil */}
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '16px 12px 0' }}>
+              {/* Link WhatsApp — abre chat com o próprio número para registrar */}
+              <a
+                href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '5562982590727'}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setOpen(false)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 14, padding: '13px 14px',
+                  borderRadius: 14, textDecoration: 'none', marginBottom: 4,
+                  background: 'rgba(37,211,102,0.1)',
+                  border: '1px solid rgba(37,211,102,0.25)',
+                }}>
+                <span style={{ fontSize: 20, width: 26, textAlign: 'center' }}>💬</span>
+                <div>
+                  <span style={{ color: '#25d166', fontSize: 15, fontWeight: 500, display: 'block' }}>Registrar via WhatsApp</span>
+                  <span style={{ color: '#48484a', fontSize: 11 }}>Abre chat para enviar mensagens</span>
+                </div>
+              </a>
+
               <Link href="/perfil" onClick={() => setOpen(false)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 14, padding: '13px 14px',

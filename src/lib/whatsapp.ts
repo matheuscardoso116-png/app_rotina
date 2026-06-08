@@ -3,11 +3,16 @@ import axios from 'axios'
 const ZAPI_BASE = `https://api.z-api.io/instances/${process.env.ZAPI_INSTANCE_ID}/token/${process.env.ZAPI_TOKEN}`
 
 export async function sendWhatsApp(phone: string, message: string) {
-  await axios.post(
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (process.env.ZAPI_CLIENT_TOKEN) {
+    headers['Client-Token'] = process.env.ZAPI_CLIENT_TOKEN
+  }
+  const res = await axios.post(
     `${ZAPI_BASE}/send-text`,
     { phone, message },
-    { headers: { 'Client-Token': process.env.ZAPI_CLIENT_TOKEN! } }
+    { headers }
   )
+  return res.data
 }
 
 export function buildRelatorio(data: {
