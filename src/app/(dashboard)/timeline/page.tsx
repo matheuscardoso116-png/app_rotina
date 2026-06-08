@@ -80,7 +80,7 @@ export default function TimelinePage() {
   }
 
   const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=`
-  const mensagemPre = encodeURIComponent('Olá! Registre: ')
+  const mensagemPre = encodeURIComponent('')
 
   const hoje = format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })
 
@@ -94,7 +94,7 @@ export default function TimelinePage() {
 
       {/* Botão WhatsApp */}
       <a
-        href={whatsappUrl + mensagemPre}
+        href={`https://wa.me/${WHATSAPP_NUMBER}`}
         target="_blank"
         rel="noopener noreferrer"
         className="block w-full rounded-2xl py-4 px-5 mb-5 text-center font-semibold text-white"
