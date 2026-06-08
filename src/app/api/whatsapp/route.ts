@@ -1,155 +1,164 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { parseMensagem } from '@/lib/claude'
+import { assistenteWhatsApp, type ContextoUsuario } from '@/lib/claude'
 import { sendWhatsApp } from '@/lib/whatsapp'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 interface ZAPIPayload {
   phone?: string
   fromMe?: boolean
   body?: string
   text?: { message?: string }
-  type?: string
-  isStatusReply?: boolean
   isGroup?: boolean
+  isStatusReply?: boolean
+}
+
+function supabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
 }
 
 export async function POST(req: NextRequest) {
   try {
     const payload: ZAPIPayload = await req.json()
+    console.log('[wa] payload:', JSON.stringify(payload).slice(0, 300))
 
-    console.log('[webhook] payload recebido:', JSON.stringify(payload).slice(0, 400))
-
-    // Ignora grupos, status replies e mensagens recebidas de outros
+    // Ignora grupos e status
     if (payload.isGroup || payload.isStatusReply) {
       return NextResponse.json({ ok: true, skip: 'group_or_status' })
     }
 
-    // Só processa mensagens ENVIADAS pelo dono (fromMe) ou que venham do próprio número
-    const meuNumero = process.env.WHATSAPP_NUMBER ?? ''
-    const remetente = payload.phone ?? ''
-    const ehMeuNumero = remetente.replace(/\D/g, '').includes(meuNumero.replace(/\D/g, ''))
-    if (payload.fromMe === false && !ehMeuNumero) {
+    // Só processa mensagens enviadas por mim
+    const meuNumero = (process.env.WHATSAPP_NUMBER ?? '').replace(/\D/g, '')
+    if (payload.fromMe === false) {
       return NextResponse.json({ ok: true, skip: 'not_from_me' })
     }
 
-    const mensagem = payload.body ?? payload.text?.message ?? ''
-    if (!mensagem || mensagem.trim().length < 3) {
+    const mensagem = (payload.body ?? payload.text?.message ?? '').trim()
+    if (mensagem.length < 2) {
       return NextResponse.json({ ok: true, skip: 'empty' })
     }
+    console.log('[wa] mensagem:', mensagem)
 
-    console.log('[webhook] mensagem:', mensagem)
-
-    // Service role — sem sessão de usuário
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-
-    // Busca o dono do app
+    // ── Busca usuário ───────────────────────────────────────────────────────
+    const supabase = supabaseAdmin()
     const { data: usersData } = await supabase.auth.admin.listUsers()
     const owner = usersData?.users?.[0]
-    if (!owner) {
-      console.error('[webhook] nenhum usuário encontrado')
-      return NextResponse.json({ ok: true })
-    }
+    if (!owner) return NextResponse.json({ ok: true, skip: 'no_user' })
     const userId = owner.id
 
-    // Parseia com IA
-    const evento = await parseMensagem(mensagem)
-    console.log('[webhook] evento parseado:', evento)
+    // ── Monta contexto com dados reais ──────────────────────────────────────
+    const hoje = new Date().toISOString().split('T')[0]
+    const mesInicio = hoje.slice(0, 7) + '-01'
 
-    let confirmacao = ''
+    const [gastosRes, treinosRes, tarefasRes, salariosRes] = await Promise.all([
+      supabase.from('gastos').select('descricao,valor,categoria,data').eq('user_id', userId).gte('data', mesInicio).order('data', { ascending: false }),
+      supabase.from('treinos').select('tipo,grupos_musculares,data').eq('user_id', userId).gte('data', mesInicio).order('data', { ascending: false }),
+      supabase.from('obrigacoes').select('titulo,prioridade,status').eq('user_id', userId),
+      supabase.from('salarios').select('descricao,valor,data').eq('user_id', userId).gte('data', mesInicio),
+    ])
 
-    if (evento.tipo === 'gasto' && evento.valor) {
-      const cat = detectarCategoria(evento.descricao)
+    const gastos  = (gastosRes.data  ?? []) as Array<{descricao:string;valor:number;categoria:string;data:string}>
+    const treinos = (treinosRes.data ?? []) as Array<{tipo:string;grupos_musculares:string;data:string}>
+    const tarefas = (tarefasRes.data ?? []) as Array<{titulo:string;prioridade:string;status:string}>
+    const salarios = (salariosRes.data ?? []) as Array<{descricao:string;valor:number;data:string}>
+
+    const totalGastosMes   = gastos.reduce((s, g)  => s + Number(g.valor), 0)
+    const totalReceitasMes = salarios.reduce((s, x) => s + Number(x.valor), 0)
+
+    const gastosPorCategoria: Record<string, number> = {}
+    gastos.forEach(g => { gastosPorCategoria[g.categoria] = (gastosPorCategoria[g.categoria] ?? 0) + Number(g.valor) })
+
+    const ctx: ContextoUsuario = {
+      totalGastosMes,
+      totalReceitasMes,
+      saldo: totalReceitasMes - totalGastosMes,
+      gastosPorCategoria,
+      qtTreinosMes: treinos.length,
+      diasTreinados: [...new Set(treinos.map(t => t.data))],
+      tarefasPendentes: tarefas.filter(t => t.status === 'pendente').map(t => ({ titulo: t.titulo, prioridade: t.prioridade })),
+      ultimosGastos: gastos.slice(0, 8),
+      ultimosTreinos: treinos.slice(0, 5),
+      hoje,
+      mesNome: format(new Date(), "MMMM 'de' yyyy", { locale: ptBR }),
+    }
+
+    // ── Chama assistente IA ─────────────────────────────────────────────────
+    const resultado = await assistenteWhatsApp(mensagem, ctx)
+    console.log('[wa] acao:', resultado.acao, '| resposta:', resultado.resposta.slice(0, 100))
+
+    // ── Executa ação ────────────────────────────────────────────────────────
+    const d = resultado.dados ?? {}
+
+    if (resultado.acao === 'gasto' && d.descricao) {
       await supabase.from('gastos').insert({
         user_id: userId,
-        descricao: evento.descricao,
-        valor: evento.valor,
-        categoria: cat,
+        descricao: d.descricao,
+        valor: d.valor ?? 0,
+        categoria: d.categoria ?? 'Outros',
         tipo: 'pessoal',
-        data: new Date().toISOString().split('T')[0],
+        data: hoje,
       })
-      confirmacao = `💸 *Gasto registrado!*\n"${evento.descricao}"\nValor: R$ ${Number(evento.valor).toFixed(2)}\nCategoria: ${cat}`
     }
 
-    else if (evento.tipo === 'treino') {
+    if (resultado.acao === 'treino' && d.descricao) {
       await supabase.from('treinos').insert({
         user_id: userId,
-        tipo: evento.descricao,
-        grupos_musculares: '',
-        data: new Date().toISOString().split('T')[0],
+        tipo: d.tipo ?? d.descricao,
+        grupos_musculares: d.grupos_musculares ?? '',
+        data: hoje,
       })
-      confirmacao = `💪 *Treino registrado!*\n"${evento.descricao}"`
     }
 
-    else if (evento.tipo === 'tarefa') {
+    if (resultado.acao === 'tarefa' && d.descricao) {
       await supabase.from('obrigacoes').insert({
         user_id: userId,
-        titulo: evento.descricao,
-        prioridade: 'media',
+        titulo: d.descricao,
+        prioridade: d.prioridade ?? 'media',
         categoria: 'Pessoal',
         status: 'pendente',
       })
-      confirmacao = `✅ *Tarefa adicionada!*\n"${evento.descricao}"\n\nVer em → Tarefas no app.`
     }
 
-    else if (evento.tipo === 'salario' && evento.valor) {
+    if (resultado.acao === 'salario' && d.descricao) {
       await supabase.from('salarios').insert({
         user_id: userId,
-        descricao: evento.descricao,
-        valor: evento.valor,
-        data: new Date().toISOString().split('T')[0],
+        descricao: d.descricao,
+        valor: d.valor ?? 0,
+        data: hoje,
       })
-      confirmacao = `💰 *Entrada registrada!*\n"${evento.descricao}"\nValor: R$ ${Number(evento.valor).toFixed(2)}`
     }
 
-    else if (evento.tipo === 'atividade') {
+    if (resultado.acao === 'atividade' && d.descricao) {
       await supabase.from('timeline').insert({
         user_id: userId,
-        titulo: evento.descricao,
+        titulo: d.descricao,
         tipo: 'outro',
-        hora: evento.hora_evento ?? new Date().toTimeString().slice(0, 5),
-        data: new Date().toISOString().split('T')[0],
+        hora: new Date().toTimeString().slice(0, 5),
+        data: hoje,
       })
-      confirmacao = `📍 *Atividade registrada!*\n"${evento.descricao}"`
     }
 
-    else {
-      // Não entendeu — pede para tentar de novo
-      confirmacao = `🤔 Não entendi o que registrar com essa mensagem.\n\nExemplos:\n• "Gastei R$50 no mercado"\n• "Fiz treino de peito 1h"\n• "Ligar para cliente amanhã" (tarefa)\n• "Recebi R$3000 de cliente"`
+    // ── Envia resposta no WhatsApp ──────────────────────────────────────────
+    if (resultado.resposta && meuNumero) {
+      await sendWhatsApp(meuNumero, resultado.resposta)
     }
 
-    // Envia confirmação
-    if (confirmacao && meuNumero) {
-      try {
-        await sendWhatsApp(meuNumero, confirmacao)
-        console.log('[webhook] confirmação enviada')
-      } catch (errSend) {
-        console.error('[webhook] erro ao enviar confirmação:', errSend)
-      }
-    }
-
-    return NextResponse.json({ ok: true, tipo: evento.tipo })
+    return NextResponse.json({ ok: true, acao: resultado.acao })
   } catch (err) {
-    console.error('[webhook] erro geral:', err)
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 })
+    console.error('[wa] erro:', err)
+    // tenta avisar no WhatsApp em caso de erro
+    const meuNumero = (process.env.WHATSAPP_NUMBER ?? '').replace(/\D/g, '')
+    if (meuNumero) {
+      try {
+        await sendWhatsApp(meuNumero, '⚠️ Erro interno ao processar sua mensagem. Tente novamente.')
+      } catch { /* ignora */ }
+    }
+    return NextResponse.json({ ok: false }, { status: 500 })
   }
-}
-
-// Detecta categoria baseado em palavras-chave
-function detectarCategoria(descricao: string): string {
-  const d = descricao.toLowerCase()
-  if (/mercado|supermercado|feira|comida|almoço|jantar|lanche|restaurante|ifood|padaria/.test(d)) return 'Alimentação'
-  if (/uber|taxi|gasolina|combustível|ônibus|metrô|transporte|estacionamento|pedagio/.test(d)) return 'Transporte'
-  if (/aluguel|condomínio|água|luz|energia|internet|casa/.test(d)) return 'Moradia'
-  if (/médico|farmácia|remédio|consulta|dentista|hospital|plano de saúde/.test(d)) return 'Saúde'
-  if (/cinema|netflix|spotify|lazer|viagem|hotel|show/.test(d)) return 'Lazer'
-  if (/curso|livro|faculdade|escola|treinamento/.test(d)) return 'Educação'
-  if (/fornecedor|produto|estoque|material/.test(d)) return 'Fornecedor'
-  if (/funcionário|salário|pagamento de func/.test(d)) return 'Funcionário'
-  if (/marketing|anúncio|publicidade|google ads|facebook ads/.test(d)) return 'Marketing'
-  return 'Outros'
 }
 
 export async function GET() {
