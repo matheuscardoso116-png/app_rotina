@@ -1,51 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabase } from '@/lib/supabase-server'
-import { parseMensagem, responderIA } from '@/lib/claude'
+import { createClient } from '@supabase/supabase-js'
+import { parseMensagem } from '@/lib/claude'
 
-// Payload que a Z-API envia no webhook quando recebe mensagem
 interface ZAPIWebhookPayload {
   phone: string
   body?: string
   text?: { message?: string }
   type?: string
-  instanceId?: string
 }
 
 export async function POST(req: NextRequest) {
   try {
     const payload: ZAPIWebhookPayload = await req.json()
 
-    // Extrai o texto da mensagem (Z-API manda em diferentes campos)
     const mensagem = payload.body ?? payload.text?.message ?? ''
     if (!mensagem || mensagem.trim().length === 0) {
       return NextResponse.json({ ok: true })
     }
 
-    // Ignora mensagens do próprio bot (enviadas pelo app)
-    if (payload.type === 'SendMessage') {
-      return NextResponse.json({ ok: true })
-    }
+    // Webhook usa service role — sem sessão de usuário disponível
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
-    // Número do dono do app — só processa mensagens DELE
-    const meuNumero = process.env.WHATSAPP_NUMBER ?? ''
-    const remetente = (payload.phone ?? '').replace(/\D/g, '')
-    if (meuNumero && !remetente.includes(meuNumero.replace(/\D/g, ''))) {
-      return NextResponse.json({ ok: true })
-    }
-
-    const supabase = await createServerSupabase()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      // Se não tem sessão, busca o primeiro usuário do app (dono)
-      const { data: users } = await supabase.auth.admin.listUsers()
-      const owner = users?.users?.[0]
-      if (!owner) return NextResponse.json({ ok: true })
-    }
-
-    const { data: { user: owner } } = await supabase.auth.getUser()
-    const userId = owner?.id
-    if (!userId) return NextResponse.json({ ok: true })
+    // Busca o dono do app (único usuário)
+    const { data: { users } } = await supabase.auth.admin.listUsers()
+    const owner = users?.[0]
+    if (!owner) return NextResponse.json({ ok: true })
+    const userId = owner.id
 
     // Parseia a mensagem com IA
     const evento = await parseMensagem(mensagem)
@@ -89,7 +72,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Endpoint de verificação do webhook Z-API
 export async function GET() {
   return NextResponse.json({ status: 'webhook ativo' })
 }
