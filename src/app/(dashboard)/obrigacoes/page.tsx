@@ -30,21 +30,37 @@ export default function ObrigacoesPage() {
   })
 
   async function load() {
-    const r = await fetch('/api/obrigacoes')
-    setItems(await r.json())
-    setLoading(false)
+    try {
+      const r = await fetch('/api/obrigacoes')
+      if (!r.ok) { console.error('obrigacoes load', r.status); setLoading(false); return }
+      const data = await r.json()
+      if (Array.isArray(data)) setItems(data)
+    } catch (e) { console.error('obrigacoes load err', e) }
+    finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
 
   async function salvar(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true)
-    await fetch('/api/obrigacoes', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    })
-    setOpen(false)
-    setForm({ titulo: '', descricao: '', prioridade: 'media', categoria: 'Pessoal', prazo: '', status: 'pendente' })
-    await load(); setSaving(false)
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const r = await fetch('/api/obrigacoes', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}))
+        alert('Erro ao salvar: ' + (err.error ?? `status ${r.status}`))
+        return
+      }
+      setOpen(false)
+      setForm({ titulo: '', descricao: '', prioridade: 'media', categoria: 'Pessoal', prazo: '', status: 'pendente' })
+      await load()
+    } catch (e) {
+      alert('Erro de rede: ' + String(e))
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function toggleStatus(id: string, status: string) {

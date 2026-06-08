@@ -35,9 +35,13 @@ export default function TreinosPage() {
   })
 
   async function load() {
-    const r = await fetch('/api/treinos')
-    setTreinos(await r.json())
-    setLoading(false)
+    try {
+      const r = await fetch('/api/treinos')
+      if (!r.ok) { console.error('treinos load', r.status); setLoading(false); return }
+      const data = await r.json()
+      if (Array.isArray(data)) setTreinos(data)
+    } catch (e) { console.error('treinos load err', e) }
+    finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
 
@@ -46,14 +50,26 @@ export default function TreinosPage() {
   }
 
   async function salvar(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true)
-    await fetch('/api/treinos', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, duracao_min: parseInt(form.duracao_min) || null, grupos_musculares: form.grupos.join(',') }),
-    })
-    setOpen(false)
-    setForm({ tipo: 'Musculação', duracao_min: '', observacoes: '', grupos: [], data: format(new Date(), 'yyyy-MM-dd') })
-    await load(); setSaving(false)
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const r = await fetch('/api/treinos', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, duracao_min: parseInt(form.duracao_min) || null, grupos_musculares: form.grupos.join(',') }),
+      })
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}))
+        alert('Erro ao salvar: ' + (err.error ?? `status ${r.status}`))
+        return
+      }
+      setOpen(false)
+      setForm({ tipo: 'Musculação', duracao_min: '', observacoes: '', grupos: [], data: format(new Date(), 'yyyy-MM-dd') })
+      await load()
+    } catch (e) {
+      alert('Erro de rede: ' + String(e))
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function excluir(id: string) {
